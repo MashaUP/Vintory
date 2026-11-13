@@ -1,5 +1,5 @@
 /** Costanti condivise. La versione qui deve coincidere con manifest, package e version.json (scripts/check.mjs). */
-export const VERSION = "1.0.2";
+export const VERSION = "1.1.0";
 export const REPO = "MashaUP/Vintory";
 export const APP = "Vintory";
 

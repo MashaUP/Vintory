@@ -5,7 +5,7 @@ import * as archive from "../../shared/archive.js";
 import { getState, setState } from "../../shared/store.js";
 import { VERSION, REPO } from "../../shared/constants.js";
 import { fmtDate, fmtBytes } from "../../shared/util.js";
-import { showUpdate } from "../update-ui.js";
+import { showUpdate, installNow } from "../update-ui.js";
 import { fillMissing, missingCategory } from "../fill.js";
 
 export async function renderSettings(main) {
@@ -45,6 +45,8 @@ export async function renderSettings(main) {
       h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", id: "check-update", onClick: async (e) => { e.currentTarget.disabled = true; try { const st = await rpc("update.check"); S.links = await rpc("links.get"); rerender(); showUpdate(st); } catch (err) { toast(err.message, "bad"); } } }, icon("refresh"), t("Cerca aggiornamento")),
         h("span", { class: "muted" }, update?.checkedAt ? (update.ok ? (update.available ? t("Disponibile la {v} · controllato il {d}", { v: update.latest, d: fmtDate(update.checkedAt, true) }) : t("Aggiornato · controllato il {d}", { d: fmtDate(update.checkedAt, true) })) : update.error) : t("Mai controllato"))),
       update?.available ? h("div", { class: "note good" }, t("È disponibile Vintory {v}.", { v: update.latest }), " ", h("a", { href: "#", onClick: (e) => { e.preventDefault(); showUpdate(update); } }, t("Scarica e installa"))) : null,
+      h("div", { class: "row" }, h("button", { class: "btn", type: "button", id: "reload-ext", onClick: () => installNow() }, icon("refresh", 15), t("Installa l'aggiornamento (ricarica Vintory)")),
+        h("span", { class: "small muted" }, t("Dopo aver estratto lo zip sopra la cartella di Vintory. Di solito il pulsante compare da solo nella barra laterale e nel popup."))),
       toggle(t("Controlla da solo ogni 12 ore"), t("Una notifica, una volta sola, quando esce una versione nuova."), s.updates.auto, (v) => setSettings({ updates: { auto: v } })),
       h("details", null, h("summary", null, t("Avanzate")), h("div", { class: "row", style: { marginTop: "8px" } }, repo, h("button", { class: "btn sm", type: "button", onClick: async () => {
         if (!/^[\w.-]+\/[\w.-]+$/.test(repo.value.trim())) { toast(t("Formato: utente/repository"), "bad"); return; }

@@ -2,7 +2,7 @@
 import { h, t, clear, toast, rpc, applyTheme, thumbUrl, safeUrl, icon } from "./lib.js";
 import { getSettings } from "../shared/store.js";
 import { fmtPrice, fmtDate } from "../shared/util.js";
-import { showUpdate } from "./update-ui.js";
+import { showUpdate, mountInstallBox } from "./update-ui.js";
 
 const app = document.getElementById("app");
 let tab = null;
@@ -102,6 +102,7 @@ document.getElementById("update").addEventListener("click", async (e) => {
 
 (async () => {
   applyTheme((await getSettings()).theme);
+  mountInstallBox(document.getElementById("install"), { compact: true });
   await render();
   renderLinks();
 })().catch((e) => { clear(app).append(h("div", { class: "note bad" }, e.message), h("div", { class: "muted small" }, icon("refresh", 14), " ", t("Chiudi e riapri il popup."))); app.removeAttribute("aria-busy"); });

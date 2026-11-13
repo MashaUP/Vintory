@@ -10,6 +10,7 @@ import { fmtPrice, fmtDate, debounce, uid, dayStamp, safeName, extOf, sleep } fr
 import { openDetail } from "./detail.js";
 import { pickCollections } from "./more.js";
 import { fillNote } from "../fill.js";
+import { exportForRelist } from "../relist-export.js";
 
 const PAGE = 60;
 const views = new Map();      // stato per sezione: filtri, selezione, pannello aperto
@@ -215,6 +216,7 @@ export async function renderList(main, scopeName, arg) {
       act(t("Collezioni…"), async () => { if (await pickCollections(ids)) await changed(); }),
       act(t("Controlla link"), () => checkLinks(list)),
       act(t("Foto (ZIP)"), () => photosZip(list)),
+      list.some((l) => l.owner === "mine") ? act(t("Per Vinted_Relist"), () => exportForRelist(list)) : null,
       act("CSV", () => exportTable(list, "csv")),
       act("Excel", () => exportTable(list, "xlsx")),
       act(t("Backup della selezione"), async () => {

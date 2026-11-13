@@ -19,3 +19,6 @@ main { padding: 12px 14px; display: grid; gap: 12px; }
 .recent span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .foot { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); background: var(--surface); }
 .foot a { font-size: 13px; }
+
+.install { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 12px 0; padding: 8px 10px; border-radius: var(--radius-sm); background: #f6c344; color: #2a1c00; font-size: 13px; }
+.install .btn { background: #2a1c00; color: #fff; border-color: transparent; }

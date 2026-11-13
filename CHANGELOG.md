@@ -2,6 +2,16 @@
 
 Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/) e le versioni seguono [Semantic Versioning](https://semver.org/lang/it/).
 
+## [1.1.0] - 2026-11-13
+
+### Nuovo
+- **«Installa l'aggiornamento» compare da solo**: quando estrai una nuova versione sopra la cartella di Vintory, il popup e la barra laterale mostrano un riquadro con il pulsante, senza dover controllare GitHub. Vintory confronta il `manifest.json` della cartella con la versione in uso. Il pulsante resta anche in Impostazioni › Aggiornamenti. Se un'importazione è in corso chiede prima conferma, e dopo il riavvio riapre l'archivio dicendo da che versione arrivi.
+- **Più annunci insieme per Vinted_Relist**: «Per Vinted_Relist» nella barra di selezione crea un solo ZIP con tutti gli annunci tuoi selezionati.
+- **Formato del ponte con Vinted_Relist** (`vintory-relist`, schema 2), descritto in `docs/RELIST_BRIDGE.md`: un file `vintory-relist.json` con l'elenco degli annunci e le foto in `photos/<id Vinted>/01.jpg…`. Contiene la copia di Vintory, gli id del modulo di vendita, i campi modificati a mano, lo stato online e l'impronta di ogni foto. Sostituisce lo schema 1 (`relist.json`, un annuncio per file).
+
+### Corretto
+- L'esportazione per Vinted_Relist usava i dati del modulo di vendita del primo salvataggio anche dopo «Aggiorna da Vinted»: ora usa l'ultima lettura.
+
 ## [1.0.2] - 2026-11-13
 
 Correzioni dei dati, viste sul primo archivio reale (41 annunci importati con la 1.0.1).

@@ -110,3 +110,20 @@ export async function getLinks({ force = false } = {}) {
     return links;
   }
 }
+
+/**
+ * La cartella dell'estensione è stata sovrascritta con un'altra versione?
+ * Un'estensione caricata da cartella legge i suoi file dal disco: manifest.json sul disco è
+ * la versione estratta, chrome.runtime.getManifest() quella in uso fino a «Ricarica».
+ */
+export async function diskVersion() {
+  const loaded = chrome.runtime.getManifest().version;
+  try {
+    const res = await fetch(`${chrome.runtime.getURL("manifest.json")}?t=${Date.now()}`, { cache: "no-store" });
+    const disk = String((await res.json()).version || "");
+    const cmp = compareVersions(disk, loaded);
+    return { loaded, disk, pending: cmp !== null && cmp !== 0, newer: cmp === 1 };
+  } catch {
+    return { loaded, disk: null, pending: false, newer: false };
+  }
+}

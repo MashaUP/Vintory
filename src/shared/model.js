@@ -323,22 +323,26 @@ export function toCsv(rows) {
   return `﻿${rows.map((r) => r.map(cell).join(";")).join("\r\n")}\r\n`;
 }
 
-/** Formato di scambio per Vinted_Relist: dati leggibili + dati del modulo di vendita, quando ci sono. */
-export function toRelistExport(listing, raw, photoFiles = []) {
+/**
+ * Ponte verso Vinted_Relist: formato «vintory-relist», schema 2 (contratto in docs/RELIST_BRIDGE.md).
+ * I campi in cima (titolo, descrizione, prezzo…) sono la copia di Vintory, eventualmente modificata:
+ * valgono più di uploadDraft, che è la risposta di Vinted al modulo di vendita (id di marca, categoria, taglia…).
+ */
+export function relistEntry(listing, raw, photos = []) {
+  const latest = raw?.latest?.bundle?.upload || null;
   return {
-    format: RELIST_FORMAT,
-    schema: 1,
-    exportedAt: new Date().toISOString(),
-    source: { vintedId: listing.vintedId, url: listing.url, origin: listing.origin },
-    listing: {
-      title: listing.title, description: listing.description, price: listing.price, currency: listing.currency,
-      brand: listing.brand, category: listing.category, size: listing.size, colors: listing.colors || [], condition: listing.condition,
-      ids: listing.ids || {}, extra: listing.extra || {},
-    },
-    photos: photoFiles,
-    uploadDraft: raw?.bundle?.upload || null,
+    vintedId: listing.vintedId, url: listing.url, origin: listing.origin, sellerId: listing.sellerId || null,
+    online: listing.online || null, onlineCheckedAt: listing.onlineCheckedAt || null, savedAt: listing.savedAt || null, publishedAt: listing.publishedAt || null,
+    title: listing.title, description: listing.description, price: listing.price, currency: listing.currency,
+    brand: listing.brand, category: listing.category, size: listing.size, colors: listing.colors || [], condition: listing.condition,
+    ids: listing.ids || {}, extra: listing.extra || {}, editedFields: [...(listing.editedFields || [])],
+    photos, photosMissing: Math.max(0, (listing.photoCount || 0) - photos.length),
+    uploadDraft: latest || raw?.bundle?.upload || null,
+    uploadDraftAt: latest ? raw.latest.capturedAt ?? null : raw?.capturedAt ?? null,
   };
 }
+
+export const relistPackage = (entries, version) => ({ format: RELIST_FORMAT, schema: 2, app: `Vintory ${version}`, exportedAt: new Date().toISOString(), count: entries.length, listings: entries });
 
 /** Segnaposto dei modelli di descrizione: {titolo} {marca} {taglia} {colore} {condizioni} {prezzo} {categoria}. */
 export function applyTemplate(text, l) {

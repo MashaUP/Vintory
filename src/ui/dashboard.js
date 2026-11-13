@@ -11,7 +11,7 @@ import { renderImport, recoverJobs } from "./pages/import.js";
 import { renderBackup, maybeAutoBackup } from "./pages/backup.js";
 import { renderSettings, renderHealth } from "./pages/settings.js";
 import { renderCollections, renderTemplates, renderStats, renderDuplicates } from "./pages/more.js";
-import { showUpdate } from "./update-ui.js";
+import { showUpdate, mountInstallBox } from "./update-ui.js";
 
 const app = document.getElementById("app");
 const NAV = [
@@ -133,6 +133,12 @@ document.getElementById("update").addEventListener("click", async (e) => {
   drawLinks();
   if (parseRoute().name === "welcome" || !(await getState("welcomed", false))) { await setState("welcomed", true); if (!S.listings.length) welcome(); }
   maybeAutoBackup();
+  mountInstallBox(document.getElementById("install"));
+  const done = await getState("justUpdated", null);
+  if (done && Date.now() - done.at < 120_000) {
+    await setState("justUpdated", null);
+    toast(done.from && done.from !== done.to ? t("Vintory aggiornato: {a} → {b}. L'archivio è intatto.", { a: done.from, b: done.to }) : t("Vintory ricaricato ({v}).", { v: done.to }), "good", 8000);
+  }
   const up = await getState("update", null);
-  if (up?.available) toast(t("È disponibile Vintory {v}: Impostazioni › Aggiornamenti.", { v: up.latest }), "good", 8000);
+  if (up?.available && up.latest !== VERSION) toast(t("È disponibile Vintory {v}: Impostazioni › Aggiornamenti.", { v: up.latest }), "good", 8000);
 })().catch((e) => { clear(app).append(h("div", { class: "note bad" }, t("Vintory non è riuscito ad aprire l'archivio: {e}", { e: e.message }))); app.removeAttribute("aria-busy"); });

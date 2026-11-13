@@ -3,10 +3,10 @@ import { h, t, clear, icon, toast, modal, confirmDialog, saveBlob, copyText, saf
 import { S, changed } from "../state.js";
 import * as archive from "../../shared/archive.js";
 import * as db from "../../shared/db.js";
-import { findSimilar, toRelistExport, applyTemplate } from "../../shared/model.js";
-import { ZipWriter } from "../../shared/zip.js";
+import { findSimilar, applyTemplate } from "../../shared/model.js";
+import { exportForRelist } from "../relist-export.js";
 import { FIELD_LABELS } from "../../shared/constants.js";
-import { fmtPrice, fmtDate, fmtBytes, num, safeName, extOf } from "../../shared/util.js";
+import { fmtPrice, fmtDate, fmtBytes, num } from "../../shared/util.js";
 import { badges, photosZip, checkLinks, ONLINE_LABEL } from "./list.js";
 import { pickCollections } from "./more.js";
 
@@ -94,21 +94,6 @@ export async function updateFromVinted(l, onDone) {
 
 // ---------------------------------------------------------------- «Prepara» (F45–F48)
 
-async function relistZip(l) {
-  const raw = await archive.getRaw(l.id);
-  const images = await archive.getImages(l);
-  const zip = new ZipWriter();
-  const files = [];
-  for (const [i, img] of images.entries()) {
-    if (!img.blob) continue;
-    const name = `photos/${String(i + 1).padStart(2, "0")}.${extOf(img.type)}`;
-    await zip.add(name, img.blob);
-    files.push(name);
-  }
-  await zip.add("relist.json", JSON.stringify(toRelistExport(l, raw, files), null, 2));
-  saveBlob(zip.finish(), `${safeName(l.title, 40)}-${l.vintedId}-relist.zip`);
-}
-
 async function prepare(l, onDone) {
   const templates = await db.getAll("templates");
   const title = h("input", { class: "input", value: l.title, maxlength: "300" });
@@ -130,7 +115,7 @@ async function prepare(l, onDone) {
       h("button", { class: "btn sm", type: "button", onClick: () => copyText(desc.value) }, icon("copy", 15), t("Copia descrizione")),
       h("button", { class: "btn sm", type: "button", onClick: () => copyText(fullText(draft())) }, icon("copy", 15), t("Copia tutto")),
       h("button", { class: "btn sm", type: "button", onClick: () => photosZip([l]) }, icon("download", 15), t("Foto (ZIP)")),
-      h("button", { class: "btn sm", type: "button", onClick: () => relistZip(draft()).catch((e) => toast(e.message, "bad")) }, icon("upload", 15), t("Esporta per Vinted_Relist"))));
+      h("button", { class: "btn sm", type: "button", onClick: () => exportForRelist([l], { draft: draft() }) }, icon("upload", 15), t("Esporta per Vinted_Relist"))));
   modal({
     title: t("Prepara: {t}", { t: l.title }), wide: true, body,
     actions: [
@@ -195,7 +180,7 @@ export async function openDetail(id, { update = false } = {}) {
       act(l.favorite ? t("Togli dai preferiti") : t("Preferito"), l.favorite ? "star-full" : "star", async () => { await archive.patchMany([l.id], (x) => { x.favorite = !x.favorite; }); await changed(); refresh(); }),
       act(t("Collezioni…"), "folder", async () => { if (await pickCollections([l.id])) { await changed(); refresh(); } }),
       act(t("Foto (ZIP)"), "download", () => photosZip([l])),
-      isMine ? act(t("Per Vinted_Relist"), "upload", () => relistZip(l).catch((e) => toast(e.message, "bad"))) : null,
+      isMine ? act(t("Per Vinted_Relist"), "upload", () => exportForRelist([l])) : null,
       h("select", { class: "input", style: { width: "auto", minHeight: "30px", padding: "3px 8px" }, "aria-label": t("Copia"), onChange: (e) => {
         const k = e.target.value; e.target.value = "";
         if (k === "title") copyText(l.title); else if (k === "description") copyText(l.description || ""); else if (k === "all") copyText(fullText(l)); else if (k === "url" && url) copyText(url);

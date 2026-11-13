@@ -1,13 +1,12 @@
 {
-  "version": "1.0.2",
+  "version": "1.1.0",
   "date": "2026-11-13",
-  "zip": "Vintory-1.0.2.zip",
-  "sha256": "4ae63bd61c1fd2adc8f16992a026badcc927561cbd23af2994e0768e4a558817",
+  "zip": "Vintory-1.1.0.zip",
+  "sha256": "b8943dd6a1145f860ae94a1cc81427d3229ba4b152fdc825ce58a2a086a0a085",
   "notes": [
-    "Categoria: il nome si impara leggendo una pagina per categoria e vale per tutti gli annunci",
-    "Taglia, marca e condizioni lette anche dalla riga dell'armadio e dal modulo di vendita",
-    "Libri e simili: autore, titolo, ISBN, produttore, modello e misure nella scheda",
-    "«Completa i dati mancanti» sistema gli annunci già archiviati",
-    "Pulsante «Per Vinted_Relist» direttamente nella scheda"
+    "«Installa l'aggiornamento» compare da solo quando estrai una nuova versione sopra la cartella",
+    "Esportazione per Vinted_Relist di più annunci insieme, dalla selezione",
+    "Nuovo formato del ponte con Vinted_Relist (vintory-relist, schema 2), descritto in docs/RELIST_BRIDGE.md",
+    "Categorie, taglie e dati dei libri della 1.0.2"
   ]
 }

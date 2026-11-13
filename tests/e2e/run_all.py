@@ -4,8 +4,8 @@ Uso: python3 tests/e2e/run_all.py [filtro]
 Gli scenari condividono un solo browser e si eseguono in ordine: ognuno parte
 dallo stato lasciato dal precedente, come farebbe una persona che usa l'estensione.
 """
-import asyncio, io, json, re, sys, time, zipfile
-from harness import start, stop
+import asyncio, io, json, os, re, sys, time, zipfile
+from harness import start, stop, EXT
 from fake_vinted import FakeVinted, ORIGIN, ME, OTHER
 
 
@@ -385,9 +385,11 @@ async def t_prepare_templates_relist(env):
     async with env.ui.expect_download() as d:
         await dlg.get_by_role("button", name="Esporta per Vinted_Relist").click()
     z = zipfile.ZipFile(await (await d.value).path())
-    data = json.loads(z.read("relist.json"))
-    check(data["format"] == "vintory-relist" and data["listing"]["description"] == text and data["uploadDraft"]["catalog_id"] == 1904, "relist.json con bozza e dati del modulo")
-    check(len(data["photos"]) == 5 and all(n in z.namelist() for n in data["photos"]) and z.testzip() is None, f"foto nello zip: {data['photos']}")
+    data = json.loads(z.read("vintory-relist.json"))
+    e = data["listings"][0]
+    check(data["format"] == "vintory-relist" and data["schema"] == 2 and data["count"] == 1, f"intestazione: {data['format']} {data['schema']}")
+    check(e["description"] == text and e["uploadDraft"]["catalog_id"] == 1904 and e["vintedId"] == "900000" and e["sellerId"] == ME, "bozza di «Prepara» e dati del modulo di vendita")
+    check(len(e["photos"]) == 5 and all(p["file"] in z.namelist() and len(p["sha256"]) == 64 for p in e["photos"]) and z.testzip() is None, f"foto nello zip: {e['photos']}")
     async with env.ui.expect_download() as d:
         await dlg.get_by_role("button", name="Foto (ZIP)").click()
     z = zipfile.ZipFile(await (await d.value).path())
@@ -395,7 +397,18 @@ async def t_prepare_templates_relist(env):
     await dlg.locator('[data-act="save-draft"]').click()
     await env.wait_for(lambda: env.A("archive.findByVintedId('900000').then((x) => x.description.includes('Spedisco in 24 ore'))"), what="bozza salvata nella scheda")
     await env.close_modals()
-    return "modello con segnaposto → «Prepara» → relist.json + 5 foto, ZIP foto, bozza salvata"
+    # Più annunci insieme, dalla selezione: un solo ZIP per Vinted_Relist.
+    await env.go("archive")
+    for i in range(3):
+        await env.ui.locator("#results .item .pick input").nth(i).check()
+    async with env.ui.expect_download() as d:
+        await env.ui.locator(".selbar").get_by_role("button", name="Per Vinted_Relist").click()
+    z = zipfile.ZipFile(await (await d.value).path())
+    data = json.loads(z.read("vintory-relist.json"))
+    files = [p["file"] for e in data["listings"] for p in e["photos"]]
+    check(data["count"] == 3 and len({e["vintedId"] for e in data["listings"]}) == 3 and all(f in z.namelist() for f in files) and len(files) >= 3, f"selezione: {data['count']} annunci, {len(files)} foto")
+    await env.ui.locator(".selbar").get_by_role("button", name="Deseleziona").click()
+    return "modello con segnaposto → «Prepara» → vintory-relist.json (schema 2) + 5 foto, 3 annunci insieme dalla selezione, ZIP foto, bozza salvata"
 
 
 async def t_exports(env):
@@ -488,10 +501,10 @@ async def t_updates_and_links(env):
     async def gh(route):
         url = route.request.url
         if url.endswith("/MashaUP/Vintory/main/version.json"):
-            return await route.fulfill(status=200, content_type="application/json", body=json.dumps({"version": "1.1.0", "date": "2026-12-01", "zip": "Vintory-1.1.0.zip", "sha256": sha, "notes": ["Novità di prova"]}))
+            return await route.fulfill(status=200, content_type="application/json", body=json.dumps({"version": "9.0.0", "date": "2026-12-01", "zip": "Vintory-9.0.0.zip", "sha256": sha, "notes": ["Novità di prova"]}))
         if url.endswith("/MashaUP/Vintory/main/links.json"):
             return await route.fulfill(status=200, content_type="application/json", body=json.dumps({"revision": 2, "links": {"discord": {"url": "https://discord.gg/NUOVOINVITO", "label": "Discord"}, "kofi": {"url": "https://evil.example/x"}}}))
-        if url.endswith("/MashaUP/Vintory/raw/HEAD/Vintory-1.1.0.zip"):
+        if url.endswith("/MashaUP/Vintory/raw/HEAD/Vintory-9.0.0.zip"):
             return await route.fulfill(status=200, content_type="application/zip", body=zip_bytes)
         return await route.fulfill(status=404, body="{}")
     env.github = gh
@@ -499,7 +512,7 @@ async def t_updates_and_links(env):
     await env.ui.locator("#update").click()
     await env.ui.locator(".modal", has_text="Aggiornamento disponibile").wait_for(timeout=15000)
     text = await env.ui.locator(".modal").inner_text()
-    check("1.1.0" in text and "Novità di prova" in text and json.load(open("manifest.json"))["version"] in text, f"finestra: {text[:200]}")
+    check("9.0.0" in text and "Novità di prova" in text and json.load(open("manifest.json"))["version"] in text, f"finestra: {text[:200]}")
     href = await env.ui.locator('#links a[data-link="discord"]').get_attribute("href")
     kofi = await env.ui.locator('#links a[data-link="kofi"]').get_attribute("href")
     check(href == "https://discord.gg/NUOVOINVITO", f"Discord aggiornato da links.json: {href}")
@@ -507,15 +520,15 @@ async def t_updates_and_links(env):
     note = ""
     try:
         await env.ui.locator('.modal [data-act="download"]').click()
-        await env.ui.wait_for_function("() => document.querySelector('.modal')?.textContent.includes('Scaricato Vintory-1.1.0.zip')", timeout=15000)
+        await env.ui.wait_for_function("() => document.querySelector('.modal')?.textContent.includes('Scaricato Vintory-9.0.0.zip')", timeout=15000)
         check("impronta verificata" in await env.ui.locator(".modal").inner_text(), "impronta verificata")
-        check(await env.ui.get_by_role("button", name="Ricarica Vintory").is_visible(), "pulsante «Ricarica Vintory»")
+        check(await env.ui.get_by_role("button", name="Installa l'aggiornamento").is_visible(), "pulsante «Installa l'aggiornamento»")
         note = ", download con impronta verificata"
     except Exception as e:
         note = f" (download non verificabile in questo ambiente: {str(e)[:80]})"
     await env.close_modals()
     await env.go("settings")
-    check(await env.ui.locator("#check-update").is_visible() and "Disponibile la 1.1.0" in await env.ui.locator("#updates").inner_text(), "sezione Aggiornamenti")
+    check(await env.ui.locator("#check-update").is_visible() and "Disponibile la 9.0.0" in await env.ui.locator("#updates").inner_text(), "sezione Aggiornamenti")
     pop = await env.ext_page("src/ui/popup.html")
     await pop.wait_for_function("() => !document.getElementById('app').hasAttribute('aria-busy')", timeout=15000)
     check(await pop.locator("#update").inner_text() == "Cerca aggiornamento", "pulsante nel popup")
@@ -525,7 +538,7 @@ async def t_updates_and_links(env):
     await pop.close()
     env.github = None
     await env.A("store.setState('update', null)")
-    return "versione 1.1.0 rilevata con novità, invito Discord cambiato da links.json, link estraneo ignorato" + note
+    return "versione 9.0.0 rilevata con novità, invito Discord cambiato da links.json, link estraneo ignorato" + note
 
 
 async def t_pages_theme(env):
@@ -584,6 +597,33 @@ async def t_trash_expiry_and_auto_backup(env):
     await env.reload()
     check(await env.ui.locator("#nav .dot").count() == 1, "segnale «backup da fare» nel menu")
     return f"cestino scaduto svuotato con le foto, {note}, indicatore dello spazio e promemoria"
+
+
+async def t_install_from_folder(env):
+    """1.1.0: cartella sovrascritta con un'altra versione → «Installa l'aggiornamento» compare da solo, senza GitHub."""
+    mpath = os.path.join(EXT, "manifest.json")
+    orig = open(mpath, encoding="utf-8").read()
+    loaded = json.loads(orig)["version"]
+    try:
+        m = json.loads(orig)
+        m["version"] = "9.9.9"
+        open(mpath, "w", encoding="utf-8").write(json.dumps(m, indent=2))
+        await env.go("archive")
+        await env.reload()
+        await env.ui.locator("#install-side").wait_for(timeout=10000)
+        text = await env.ui.locator("#install").inner_text()
+        check("9.9.9" in text and loaded in text, f"riquadro nella barra laterale: {text}")
+        popup = await env.ext_page("src/ui/popup.html")
+        await popup.locator("#install-popup").wait_for(timeout=10000)
+        check("9.9.9" in await popup.locator("#install").inner_text(), "riquadro nel popup")
+        await popup.close()
+    finally:
+        open(mpath, "w", encoding="utf-8").write(orig)
+    await env.ui.evaluate("() => window.dispatchEvent(new Event('focus'))")
+    await env.wait_for(lambda: env.ui.evaluate("() => document.getElementById('install').classList.contains('hidden')"), what="riquadro sparito con la cartella di nuovo uguale")
+    await env.go("settings")
+    check(await env.ui.locator("#reload-ext").count() == 1, "pulsante sempre disponibile in Impostazioni")
+    return "manifest 9.9.9 sul disco → «Installa l'aggiornamento» nella barra laterale e nel popup; cartella ripristinata → sparisce; pulsante fisso in Impostazioni"
 
 
 async def t_vinted_403(env):
@@ -741,6 +781,7 @@ SCENARIOS = [
     ("Aggiornamenti e collegamenti", t_updates_and_links),
     ("Simili, statistiche, impostazioni, tema", t_pages_theme),
     ("Cestino scaduto, backup automatico, spazio", t_trash_expiry_and_auto_backup),
+    ("Cartella sovrascritta: Installa l'aggiornamento", t_install_from_folder),
     ("Vinted reale: token e 403 (1.0.1)", t_vinted_403),
     ("Dati reali e completamento (1.0.2)", t_real_shapes_102),
     ("Persistenza dopo il riavvio del browser", t_restart_persistence),

@@ -166,10 +166,21 @@ test("CSV per Excel italiano e niente formule dal testo", () => {
 
 test("modelli, formato per Vinted_Relist, cestino, backup scaduto, indirizzi", () => {
   assert.equal(M.applyTemplate("Taglia {taglia}, {Marca}, € {prezzo} {ignoto}", { size: "M", brand: "Zara", price: 12.5 }), "Taglia M, Zara, € 12,5 {ignoto}");
-  const ex = M.toRelistExport(L({ id: "1", title: "T", ids: { catalogId: "5" }, origin: ORIGIN, url: "u" }), { bundle: { upload } }, ["photos/01.jpg"]);
-  assert.equal(ex.format, "vintory-relist");
-  assert.equal(ex.uploadDraft.catalog_id, 1907);
-  assert.deepEqual(ex.photos, ["photos/01.jpg"]);
+  const ph = [{ file: "photos/1/01.jpg", type: "image/jpeg", width: 10, height: 10, sha256: "x" }];
+  const e1 = M.relistEntry(L({ id: "1", vintedId: "1", title: "T", ids: { catalogId: "5" }, origin: ORIGIN, url: "u", photoCount: 2, editedFields: ["title"] }), { capturedAt: 1, bundle: { upload } }, ph);
+  assert.equal(e1.uploadDraft.catalog_id, 1907);
+  assert.equal(e1.uploadDraftAt, 1);
+  assert.deepEqual(e1.photos, ph);
+  assert.equal(e1.photosMissing, 1);
+  assert.deepEqual(e1.editedFields, ["title"]);
+  // Dopo «Aggiorna da Vinted» vale l'ultima lettura del modulo di vendita.
+  const e2 = M.relistEntry(L({ id: "1", vintedId: "1", title: "T" }), { capturedAt: 1, bundle: { upload }, latest: { capturedAt: 2, bundle: { upload: { ...upload, price: "9.0" } } } }, []);
+  assert.equal(e2.uploadDraft.price, "9.0");
+  assert.equal(e2.uploadDraftAt, 2);
+  const pkg = M.relistPackage([e1, e2], "1.1.0");
+  assert.equal(pkg.format, "vintory-relist");
+  assert.equal(pkg.schema, 2);
+  assert.equal(pkg.count, 2);
   const now = Date.now();
   assert.equal(M.trashExpired(now - 31 * 86400e3, now), true);
   assert.equal(M.trashExpired(now - 29 * 86400e3, now), false);

@@ -137,3 +137,6 @@ ul.plain { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
   .gallery { position: static; }
   .selbar { top: 0; }
 }
+
+.install { display: grid; gap: 6px; padding: 10px; border-radius: var(--radius-sm); background: #f6c344; color: #2a1c00; font-size: 13px; }
+.install .btn { background: #2a1c00 !important; color: #fff !important; border-color: transparent; }

@@ -4,7 +4,7 @@
 
 **Archivio personale dei tuoi annunci Vinted.** Vintory è un'estensione per Chrome, Edge e Brave che conserva una copia completa di ogni annuncio (testi, prezzo, marca, taglia, condizioni e tutte le foto) dentro il browser. La copia resta consultabile anche quando l'annuncio viene eliminato da Vinted.
 
-**Versione 1.0.2** · solo lettura: Vintory non pubblica, non modifica e non elimina nulla su Vinted.
+**Versione 1.1.0** · solo lettura: Vintory non pubblica, non modifica e non elimina nulla su Vinted.
 
 ![L'archivio](docs/screenshots/archivio.png)
 
@@ -12,11 +12,11 @@
 
 ## Installazione
 
-1. Scarica **`Vintory-1.0.2.zip`** da questa pagina ed estrailo: ottieni la cartella `Vintory`.
+1. Scarica **`Vintory-1.1.0.zip`** da questa pagina ed estrailo: ottieni la cartella `Vintory`.
 2. Apri `brave://extensions` (oppure `chrome://extensions` o `edge://extensions`) e attiva la **Modalità sviluppatore**.
 3. Premi **Carica estensione non pacchettizzata** e scegli la cartella `Vintory`.
 
-Per aggiornare: **Cerca aggiornamento** (nel popup o nella dashboard) scarica il nuovo zip; estrailo sopra la stessa cartella e premi **Ricarica Vintory**. L'archivio non viene toccato.
+Per aggiornare: **Cerca aggiornamento** (nel popup o nella dashboard) scarica il nuovo zip; estrailo sopra la stessa cartella. Vintory se ne accorge da solo e mostra **Installa l'aggiornamento** nel popup e nella barra laterale (c'è anche in Impostazioni › Aggiornamenti). L'archivio non viene toccato.
 
 > **Il backup conta.** L'archivio vive dentro il browser: se rimuovi l'estensione viene cancellato. Fai un backup da **Backup › Crea backup (ZIP)** e tienilo fuori dal browser. Vintory te lo ricorda.
 
@@ -26,7 +26,7 @@ Per aggiornare: **Cerca aggiornamento** (nel popup o nella dashboard) scarica il
 - **Salvarne tanti:** apri il tuo armadio e premi **Importa il mio armadio**. Vedi l'anteprima, scegli gli annunci e parte il salvataggio, uno alla volta. Se chiudi il browser a metà, riprendi da **Importa**.
 - **Annunci di altri:** si possono salvare, dopo una conferma, e finiscono nella sezione **Annunci non miei**, fuori da valore e statistiche.
 - **Ritrovare:** ricerca, filtri (marca, categoria, taglia, colore, condizioni, prezzo), filtri salvati, preferiti, collezioni.
-- **Riusare:** **Prepara** apre una copia modificabile, con i tuoi modelli di descrizione, la copia rapida dei testi e lo ZIP delle foto. **Per Vinted_Relist** (nella scheda) esporta dati e foto in un file che Vinted_Relist potrà leggere.
+- **Riusare:** **Prepara** apre una copia modificabile, con i tuoi modelli di descrizione, la copia rapida dei testi e lo ZIP delle foto. **Per Vinted_Relist** (nella scheda o sulla selezione) esporta dati e foto di uno o più annunci tuoi in un file che Vinted_Relist potrà leggere: formato in [docs/RELIST_BRIDGE.md](docs/RELIST_BRIDGE.md).
 
 ## Funzionalità
 
@@ -62,11 +62,11 @@ JavaScript puro a moduli ES, nessuna dipendenza a runtime, nessuna build.
 ```bash
 npm ci                 # solo fake-indexeddb, per i test
 npm test               # controlli + 47 test unitari
-npm run test:e2e       # 23 scenari in Chrome contro il Vinted simulato (Python + Playwright)
-npm run package        # dist/Vintory-1.0.2.zip e dist/Vintory_GitHub.zip
+npm run test:e2e       # 24 scenari in Chrome contro il Vinted simulato (Python + Playwright)
+npm run package        # dist/Vintory-1.1.0.zip e dist/Vintory_GitHub.zip
 ```
 
-Documentazione: [architettura](docs/ARCHITECTURE.md) · [piano di prova](docs/TEST_PLAN.md) · [rilascio](docs/RELEASE.md) · [novità](CHANGELOG.md).
+Documentazione: [architettura](docs/ARCHITECTURE.md) · [ponte con Vinted_Relist](docs/RELIST_BRIDGE.md) · [piano di prova](docs/TEST_PLAN.md) · [rilascio](docs/RELEASE.md) · [novità](CHANGELOG.md).
 
 ## Sostieni e partecipa
 

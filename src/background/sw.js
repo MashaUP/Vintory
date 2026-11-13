@@ -340,7 +340,11 @@ async function handle(method, p, sender) {
     }
     case "update.status": return getState("update", null);
     case "update.download": return downloadUpdate();
-    case "update.reload": setTimeout(() => chrome.runtime.reload(), 150); return true;
+    case "update.reload":
+      // Dopo il riavvio onInstalled riapre la dashboard e dice da che versione si arriva.
+      await setState("reloadFrom", { version: VERSION, at: Date.now(), reopen: p.reopen !== false });
+      setTimeout(() => chrome.runtime.reload(), 150);
+      return true;
     case "links.get": return getLinks({ force: Boolean(p.force) });
     case "diag.save": {
       // Solo esiti tecnici (codice HTTP, tipo di errore, da dove arriva il token): niente id, titoli o token.
@@ -418,6 +422,14 @@ chrome.notifications.onClicked.addListener((id) => { openDashboard(id === "updat
 chrome.runtime.onInstalled.addListener(async (d) => {
   await ensureAlarms();
   if (d.reason === "install") { await setState("installedAt", Date.now()); openDashboard("welcome"); }
+  if (d.reason === "update") {
+    const from = await getState("reloadFrom", null);
+    await setState("reloadFrom", null);
+    if (from && Date.now() - from.at < 5 * 60_000) {
+      await setState("justUpdated", { from: from.version, to: VERSION, at: Date.now() });
+      if (from.reopen) openDashboard("archive");
+    }
+  }
   // Dopo un aggiornamento: completa gli annunci con i dati già salvati (nessuna richiesta a Vinted).
   if (d.reason === "update") archive.refill().then((n) => { if (n) broadcast("vy:changed", { reason: "refill" }); }).catch((e) => logError("refill", e));
 });
