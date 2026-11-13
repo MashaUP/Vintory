@@ -181,7 +181,7 @@
   if (globalThis.__vintoryListener) { try { chrome.runtime.onMessage.removeListener(globalThis.__vintoryListener); } catch { /* contesto precedente */ } }
   globalThis.__vintoryListener = (msg, _sender, send) => {
     if (!msg || typeof msg.type !== "string" || !msg.type.startsWith("vy:")) return false;
-    const run = { "vy:read": VY.read, "vy:status": VY.status, "vy:wardrobe": VY.wardrobe }[msg.type];
+    const run = { "vy:read": VY.read, "vy:status": VY.status, "vy:wardrobe": VY.wardrobe, "vy:page": VY.page }[msg.type];
     if (msg.type === "vy:ping") { send({ ok: true, version: VY.version, page: VY.pageKind() }); return false; }
     if (msg.type === "vy:refresh") { refresh(); send({ ok: true }); return false; }
     if (!run) return false;

@@ -4,12 +4,12 @@
 
 | Comando | Cosa prova |
 |---|---|
-| `npm test` | controlli (`scripts/check.mjs`) e 45 test unitari: modello, ZIP ed Excel, guardia di sola lettura, aggiornamenti e link, archivio e backup su IndexedDB simulato |
-| `npm run test:e2e` | 21 scenari in Chrome reale con l'estensione caricata, contro un Vinted simulato (`tests/e2e/fake_vinted.py`) |
+| `npm test` | controlli (`scripts/check.mjs`) e 47 test unitari: modello, ZIP ed Excel, guardia di sola lettura, aggiornamenti e link, archivio e backup su IndexedDB simulato |
+| `npm run test:e2e` | 23 scenari in Chrome reale con l'estensione caricata, contro un Vinted simulato (`tests/e2e/fake_vinted.py`) |
 
-Scenari end-to-end: salvataggio dalla pagina · nessun duplicato · annuncio non mio · CAPTCHA e foto non scaricabili · importazione dall'armadio · importazione fermata da Vinted e ripresa · importazione interrotta dalla chiusura · ricerca, filtri, ordinamento, viste · selezione, preferiti, collezioni, cestino · scheda, modifica, note, versioni · aggiornamento da Vinted · annuncio non più online · modelli, Prepara, Vinted_Relist · CSV ed Excel · integrità delle foto · backup e ripristino su una nuova installazione · aggiornamenti e collegamenti · simili, statistiche, impostazioni, tema · cestino scaduto, backup automatico, spazio · persistenza dopo il riavvio del browser · sola lettura e assenza di errori.
+Scenari end-to-end: salvataggio dalla pagina · nessun duplicato · annuncio non mio · CAPTCHA e foto non scaricabili · importazione dall'armadio · importazione fermata da Vinted e ripresa · importazione interrotta dalla chiusura · ricerca, filtri, ordinamento, viste · selezione, preferiti, collezioni, cestino · scheda, modifica, note, versioni · aggiornamento da Vinted · annuncio non più online · modelli, Prepara, Vinted_Relist · CSV ed Excel · integrità delle foto · backup e ripristino su una nuova installazione · aggiornamenti e collegamenti · simili, statistiche, impostazioni, tema · cestino scaduto, backup automatico, spazio · Vinted reale: token CSRF e 403 · dati reali e completamento · persistenza dopo il riavvio del browser · sola lettura e assenza di errori.
 
-Risultato alla 1.0.0: 45/45 e 21/21.
+Risultato alla 1.0.2: 47/47 e 23/23.
 
 ## Non coperto dalle prove automatiche
 

@@ -181,7 +181,7 @@ test("aggiornamento da Vinted: segnale di modifica, solo i campi scelti, foto ri
 
 test("etichette imparate: un id già visto riceve il suo nome", async () => {
   await fresh();
-  await archive.saveBundle({ bundle: { details: item(1), page: { id: "1", attrs: {}, breadcrumbs: ["Donna", "Vestiti"] } }, origin: ORIGIN, accountId: ME });
+  await archive.saveBundle({ bundle: { details: item(1), page: { id: "1", attrs: {}, breadcrumbs: [], catalog: { id: "5", names: ["Donna", "Vestiti"] } } }, origin: ORIGIN, accountId: ME });
   const r = await archive.saveBundle({ bundle: { upload: { id: 2, title: "Senza etichette", catalog_id: 5, brand_id: 10, user_id: Number(ME), photos: [photo(21)] } }, origin: ORIGIN, accountId: ME });
   assert.equal(r.listing.category, "Donna › Vestiti");
   assert.equal(r.listing.brand, "Zara");
@@ -334,4 +334,26 @@ test("un backup manomesso non porta dentro indirizzi pericolosi né tipi sbaglia
   assert.equal(l.title, "5");
   assert.deepEqual(l.colors, []);
   assert.deepEqual(l.imageIds, []);
+});
+
+test("1.0.2: completamento dei dati già archiviati senza toccare le modifiche a mano", async () => {
+  await fresh();
+  const upload = { id: 50, title: "Libro", catalog_id: 2319, brand_id: 77, user_id: Number(ME), author: "Clea Benedetti", item_attributes: [{ code: "condition", ids: [3] }], photos: [photo(501)] };
+  const wardrobe = { id: 50, title: "Libro", size: "Taglia unica", brand: "Fanucci", status: "Buone", user: { id: Number(ME) } };
+  const bundle = { upload, wardrobe };
+  assert.equal(await archive.missingCatalog(bundle, ORIGIN), "2319");
+  const { listing } = await archive.saveBundle({ bundle, origin: ORIGIN, accountId: ME });
+  // com'era nella 1.0.1: niente taglia, niente dati del libro; marca cambiata a mano
+  await archive.patchMany([listing.id], (x) => { x.size = null; x.extra = {}; });
+  await archive.editListing(listing.id, { brand: "Fanucci Editore" });
+  await archive.learnLabel("catalog", "2319", "Intrattenimento › Libri");
+  assert.equal(await archive.missingCatalog(bundle, ORIGIN), null);
+  assert.equal(await archive.refill(), 1);
+  const l = await archive.getListing(listing.id);
+  assert.equal(l.category, "Intrattenimento › Libri");
+  assert.equal(l.size, "Taglia unica");
+  assert.equal(l.condition, "Buone");
+  assert.equal(l.extra.author, "Clea Benedetti");
+  assert.equal(l.brand, "Fanucci Editore", "un campo modificato a mano resta com'è");
+  assert.equal(await archive.refill(), 0, "una seconda volta non cambia nulla");
 });

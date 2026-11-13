@@ -11,7 +11,9 @@ const details = { id: 501, title: "Giacca di jeans", description: "Usata poco.\n
   user: { id: 4242, login: "masha" }, created_at_ts: "2026-10-01T10:00:00+02:00", path: "/items/501-giacca-di-jeans", photos: upload.photos };
 
 test("normalizeBundle unisce modulo di vendita, scheda e pagina", () => {
-  const n = M.normalizeBundle({ upload, details, page: { id: "501", attrs: {}, breadcrumbs: ["Donna", "Giacche"] } }, ORIGIN);
+  const n = M.normalizeBundle({ upload, details, page: { id: "501", attrs: {}, breadcrumbs: ["Menu del sito"], catalog: { id: "1907", names: ["Donna", "Giacche"] } } }, ORIGIN);
+  // Un percorso che finisce con un'altra categoria (per esempio il menu del sito) non vale.
+  assert.equal(M.normalizeBundle({ upload, page: { id: "501", attrs: {}, breadcrumbs: [], catalog: { id: "4", names: ["Donna"] } } }, ORIGIN).category, null);
   assert.equal(n.vintedId, "501");
   assert.equal(n.price, 25);
   assert.equal(n.brand, "Levi's");
@@ -25,6 +27,19 @@ test("normalizeBundle unisce modulo di vendita, scheda e pagina", () => {
   assert.deepEqual(n.ids.colorIds, ["9", "12"]);
   assert.equal(n.publishedAt, Date.parse("2026-10-01T10:00:00+02:00"));
   assert.deepEqual(n.sources, ["upload", "details", "page"]);
+});
+
+test("forme reali (1.0.2): riga dell'armadio con testo, condizioni in item_attributes, dati dei libri", () => {
+  const up = { id: 9, title: "The Atlas Six", catalog_id: 2319, item_attributes: [{ code: "condition", ids: [2] }], author: "Olivie Blake", book_title: "The Atlas Six", isbn: 9781529095258, measurement_length: 20, measurement_width: 13, measurement_unit: "cm", photos: [] };
+  const row = { id: 9, title: "The Atlas Six", brand: "Newton", size: "Taglia unica", status: "", price: { amount: "4.0", currency_code: "EUR" } };
+  const n = M.normalizeBundle({ upload: up, wardrobe: row }, ORIGIN);
+  assert.equal(n.condition, "Ottime");
+  assert.equal(n.size, "Taglia unica");
+  assert.equal(n.brand, "Newton");
+  assert.deepEqual(n.extra, { author: "Olivie Blake", bookTitle: "The Atlas Six", isbn: "9781529095258", measures: "20 × 13 cm" });
+  assert.equal(n.category, null);
+  assert.equal(n.ids.catalogId, "2319");
+  assert.ok(M.searchText({ ...n, title: "x" }).includes("olivie blake"));
 });
 
 test("foto: sempre la risoluzione più alta, senza doppioni", () => {

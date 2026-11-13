@@ -9,6 +9,7 @@ import { exportArchive } from "../../shared/backup.js";
 import { fmtPrice, fmtDate, debounce, uid, dayStamp, safeName, extOf, sleep } from "../../shared/util.js";
 import { openDetail } from "./detail.js";
 import { pickCollections } from "./more.js";
+import { fillNote } from "../fill.js";
 
 const PAGE = 60;
 const views = new Map();      // stato per sezione: filtri, selezione, pannello aperto
@@ -147,6 +148,7 @@ export async function renderList(main, scopeName, arg) {
   clear(main).append(
     h("div", { class: "page-head" }, h("div", null, h("h1", null, coll ? coll.name : t(scope.title)), count), h("div", { class: "row" }, headActions)),
     isTrash ? h("div", { class: "note" }, t("Gli annunci nel cestino vengono eliminati definitivamente dopo 30 giorni.")) : null,
+    scopeName === "archive" || scopeName === "others" ? fillNote(() => go(scopeName)) : null,
     scopeName === "others" ? h("div", { class: "note" }, t("Annunci di altri utenti: consultazione, note, foto e backup. «Prepara» e l'esportazione per Vinted_Relist sono riservati ai tuoi annunci.")) : null,
     h("div", { class: "toolbar" }, h("div", { class: "grow search" }, search), sortSel, filterBtn, savedSel, isTrash ? null : exportSel, h("div", { class: "row", role: "group", "aria-label": t("Vista") }, viewBtn("grid", "grid", t("Griglia")), viewBtn("list", "list", t("Lista")))),
     panelBox, selBar, resultsBox, sentinel);

@@ -4,6 +4,17 @@ Playwright (context.route). Registra ogni richiesta per verificare che Vintory
 resti in sola lettura.
 NON è Vinted: le forme delle risposte seguono quelle note da Vinted_Relist e
 Vintastic e le ipotesi documentate in src/content/vinted.js.
+
+Comportamenti presi dal Vinted reale (report della 1.0.0, 13/11/2026):
+- il token CSRF non è in un <meta>: sta negli script della pagina, con le virgolette
+  protette da «\\» (payload di Next.js); la pagina «Vendi» (/items/new) lo contiene sempre;
+- le API degli annunci senza token valido rispondono 403; l'elenco dell'armadio no;
+- /items/:id/details non esiste: 403.
+Forme reali viste nel backup di Andrea (1.0.1):
+- riga dell'armadio con marca, taglia e condizioni come testo: «brand», «size», «status»;
+- libri e simili: nel modulo di vendita autore, titolo, ISBN, condizioni solo in item_attributes, niente size_id;
+- la categoria è solo un numero; il nome sta nei link /catalog/<id>-… della pagina (in una lista qualsiasi,
+  dopo il menu del sito che ha anch'esso link /catalog/).
 """
 import io, json, random, re
 from urllib.parse import urlparse, parse_qs
@@ -13,12 +24,15 @@ ORIGIN = "https://www.vinted.it"
 ME = "4242"
 OTHER = "77"
 CDN = "https://images1.vinted.net"
-ALLOWED_API = re.compile(r"^/api/v2/(items/\d+(/details)?|item_upload/items/\d+|wardrobe/\d+/items)$")
+ALLOWED_API = re.compile(r"^/api/v2/(items/\d+|item_upload/items/\d+|wardrobe/\d+/items)$")
+CSRF = "75f6c9fa-dc8e-4e52-a000-e09dd4084b3e"
+CSRF_SCRIPT = '<script>self.__next_f.push([1,"{\\"session\\":{\\"CSRF_TOKEN\\":\\"' + CSRF + '\\",\\"anon\\":true}}"])</script>'
+
 BRANDS = [(10, "Zara"), (11, "Levi's"), (12, "Nike"), (13, "H&M")]
 SIZES = [(206, "S"), (207, "M"), (208, "L")]
 STATUS = [(6, "Nuovo con cartellino"), (2, "Ottime"), (3, "Buone")]
 COLORS = [(1, "Nero"), (9, "Blu"), (7, "Rosso"), (12, "Bianco")]
-CATS = [(1904, ["Donna", "Vestiti"]), (1907, ["Donna", "Giacche"]), (2050, ["Uomo", "Scarpe"])]
+CATS = [(1904, [(4, "Donna"), (1904, "Vestiti")]), (1907, [(4, "Donna"), (1907, "Giacche")]), (2050, [(5, "Uomo"), (2050, "Scarpe")])]
 
 
 def photo_bytes(pid: int) -> bytes:
@@ -42,6 +56,9 @@ class FakeVinted:
         self.legacy_item_api = False
         self.photo_fail = set()
         self.logged_in = True
+        self.require_csrf = True     # le API degli annunci vogliono X-CSRF-Token
+        self.token_in_pages = True   # False: il token si trova solo in /items/new
+        self.csrf_ok = []            # (percorso, token valido?) per le prove
         for i in range(mine):
             self.add(900000 + i, ME, "masha_up", i)
         for i in range(others):
@@ -76,34 +93,39 @@ class FakeVinted:
         d = {"id": it["id"], "title": it["title"], "description": it["description"], "price": it["price"]["amount"], "currency": "EUR",
              "catalog_id": it["catalog_id"], "user_id": it["user"]["id"], "photos": it["photos"], "is_unisex": False, "package_size_id": 2}
         d.update(it["_ids"])
+        if it.get("_book"):
+            d.pop("size_id", None)
+            d.pop("status_id", None)
+            d.update(it["_book"])
+            d["item_attributes"] = [{"code": "condition", "ids": [it["_ids"]["status_id"]]}]
         return d
 
     def row(self, it):
-        return {"id": it["id"], "title": it["title"], "price": it["price"], "brand_title": it["brand_dto"]["title"], "size_title": it["size_title"], "status": it["status"],
+        return {"id": it["id"], "title": it["title"], "price": it["price"], "brand": it["brand_dto"]["title"], "size": it["size_title"], "status": it["status"],
                 "path": it["path"], "url": it["url"], "user": it["user"], "photo": it["photos"][0] if it["photos"] else None, "is_closed": it["is_closed"], "is_reserved": it["is_reserved"], "is_hidden": it["is_hidden"]}
 
     # ------------------------------------------------------------------ pagine
     def item_html(self, it):
         ld = {"@context": "https://schema.org", "@type": "Product", "name": it["title"], "description": it["description"], "brand": {"@type": "Brand", "name": it["brand_dto"]["title"]},
               "image": [p["full_size_url"] for p in it["photos"]], "offers": {"@type": "Offer", "price": it["price"]["amount"], "priceCurrency": "EUR"}}
-        crumbs = "".join(f'<li><a href="/catalog/{i}">{c}</a></li>' for i, c in enumerate(["Home"] + it["_crumbs"]))
+        crumbs = '<li><a href="/">Home</a></li>' + "".join(f'<li><a href="/catalog/{cid}-{name.lower().replace(" ", "-")}">{name}</a></li>' for cid, name in it["_crumbs"])
         embedded = json.dumps({"item": {"id": it["id"], "user_id": it["user"]["id"]}})
         return f"""<!doctype html><html lang="it"><head><meta charset="utf-8"><title>{it['title']} | Vinted</title>
-<meta name="csrf-token" content="csrf-token-di-prova-1234567890">
 <meta property="og:title" content="{it['title']}"><script type="application/ld+json">{json.dumps(ld)}</script></head>
-<body><header><a href="/member/{ME}">Il mio profilo</a><button data-testid="header-user-menu">menu</button></header>
-<main><nav data-testid="breadcrumbs"><ol>{crumbs}</ol></nav><h1>{it['title']}</h1>
+<body><header><a href="/member/{ME}">Il mio profilo</a><button data-testid="header-user-menu">menu</button>
+<nav><ul><li><a href="/catalog/4-donna">Donna</a></li><li><a href="/catalog/5-uomo">Uomo</a></li><li><a href="/catalog/2312-intrattenimento">Intrattenimento</a></li></ul></nav></header>
+<main><div class="u-flexbox"><ul class="u-flexbox">{crumbs}</ul></div><h1>{it['title']}</h1>
 <div data-testid="item-attributes-brand"><span>Marca</span><span itemprop="brand">{it['brand_dto']['title']}</span></div>
 <div data-testid="item-attributes-size"><span>Taglia</span><span>{it['size_title']}</span></div>
 <div data-testid="item-attributes-status"><span>Condizioni</span><span>{it['status']}</span></div>
 <div data-testid="item-attributes-color"><span>Colore</span><span>{it['color1']}, {it['color2']}</span></div>
 <a href="/member/{it['user']['id']}-{it['user']['login']}">{it['user']['login']}</a></main>
-<script>window.__DATA__ = {embedded};</script></body></html>"""
+<script>window.__DATA__ = {embedded};</script>{CSRF_SCRIPT if self.token_in_pages else ""}</body></html>"""
 
     def member_html(self, uid):
         cards = "".join(f'<div data-testid="grid-item"><a href="{it["path"]}"><img alt="{it["title"]}, prezzo" src="{it["photos"][0]["url"] if it["photos"] else ""}"></a><p>{it["price"]["amount"]} €</p></div>'
                         for it in self.items.values() if str(it["user"]["id"]) == str(uid))
-        return f'<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Armadio | Vinted</title><meta name="csrf-token" content="csrf-token-di-prova-1234567890"></head><body><main>{cards}</main></body></html>'
+        return f'<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Armadio | Vinted</title></head><body><main>{cards}</main>{CSRF_SCRIPT if self.token_in_pages else ""}</body></html>'
 
     # ------------------------------------------------------------------ richieste
     async def handle(self, route):
@@ -123,14 +145,17 @@ class FakeVinted:
         if path.startswith("/api/"):
             if req.method != "GET" or not ALLOWED_API.match(path):
                 return await js({"message": "non previsto"}, 400)
-            m = re.match(r"^/api/v2/items/(\d+)/details$", path)
-            if m:
-                it = self.items.get(int(m.group(1)))
-                return await js({"item": self.public(it)}) if it else await js({"message": "not found"}, 404)
+            if re.match(r"^/api/v2/items/\d+/details$", path):
+                return await js({"code": 106, "message": "Forbidden"}, 403)
+            if not path.startswith("/api/v2/wardrobe/"):
+                good = req.headers.get("x-csrf-token") == CSRF
+                self.csrf_ok.append((path, good))
+                if self.require_csrf and not good:
+                    return await js({"code": 106, "message": "Invalid CSRF token"}, 403)
             m = re.match(r"^/api/v2/items/(\d+)$", path)
             if m:
                 it = self.items.get(int(m.group(1)))
-                return await js({"item": self.public(it)}) if (it and self.legacy_item_api) else await js({"message": "not found"}, 404)
+                return await js({"item": self.public(it)}) if it else await js({"message": "not found"}, 404)
             m = re.match(r"^/api/v2/item_upload/items/(\d+)$", path)
             if m:
                 it = self.items.get(int(m.group(1)))
@@ -144,6 +169,8 @@ class FakeVinted:
                 rows = sorted([it for it in self.items.values() if str(it["user"]["id"]) == m.group(1)], key=lambda x: -x["id"])
                 pages = max(1, -(-len(rows) // per))
                 return await js({"items": [self.row(it) for it in rows[(page - 1) * per: page * per]], "pagination": {"current_page": page, "total_pages": pages, "total_entries": len(rows), "per_page": per}})
+        if path == "/items/new":
+            return await route.fulfill(status=200, content_type="text/html", body=f'<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Vendi | Vinted</title></head><body><main><h1>Vendi</h1></main>{CSRF_SCRIPT}</body></html>')
         m = re.match(r"^/items/(\d+)", path)
         if m:
             it = self.items.get(int(m.group(1)))
@@ -153,7 +180,7 @@ class FakeVinted:
         m = re.match(r"^/member/(\d+)", path)
         if m:
             return await route.fulfill(status=200, content_type="text/html", body=self.member_html(m.group(1)))
-        await route.fulfill(status=200, content_type="text/html", body='<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Vinted</title><meta name="csrf-token" content="csrf-token-di-prova-1234567890"></head><body><main><h1>Vinted finto</h1></main></body></html>')
+        await route.fulfill(status=200, content_type="text/html", body=f'<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Vinted</title></head><body><main><h1>Vinted finto</h1></main>{CSRF_SCRIPT if self.token_in_pages else ""}</body></html>')
 
     async def handle_photo(self, route):
         path = urlparse(route.request.url).path

@@ -4,7 +4,7 @@ Uso: python3 tests/e2e/run_all.py [filtro]
 Gli scenari condividono un solo browser e si eseguono in ordine: ognuno parte
 dallo stato lasciato dal precedente, come farebbe una persona che usa l'estensione.
 """
-import asyncio, io, json, sys, time, zipfile
+import asyncio, io, json, re, sys, time, zipfile
 from harness import start, stop
 from fake_vinted import FakeVinted, ORIGIN, ME, OTHER
 
@@ -97,7 +97,7 @@ async def t_other_listing(env):
 
 async def t_captcha_and_photo_errors(env):
     """Vincoli: CAPTCHA ferma tutto; una foto che non si scarica viene segnalata."""
-    env.fake.fail = {r"/api/v2/items/900050/details": "captcha"}
+    env.fake.fail = {r"/api/v2/item_upload/items/900050": "captcha"}
     page = await env.vinted("/items/900050-articolo-50")
     await wait_btn(page, "Salva in Vintory")
     await page.locator("#vintory-host .main").click()
@@ -147,17 +147,13 @@ async def t_import(env):
     imported = [l for l in mine if l["source"] == "import"]
     check(len(imported) == 8 and all(l["photoCount"] == 5 and l["photoMissing"] == 0 and l["jobId"] for l in imported), "8 importati con 5 foto")
     check(all(l["brand"] and l["size"] and l["condition"] and l["ids"]["catalogId"] for l in imported), "marca, taglia, condizioni e id della categoria anche senza aprire la pagina")
-    no_cat = [l for l in imported if not l["category"]]
-    check(no_cat, "le categorie mai viste da una pagina non hanno ancora un nome")
-    target = no_cat[0]
-    await env.A("archive.patchMany([arg], (x) => { x.onlineCheckedAt = 0; })", target["id"])
-    p2 = await env.vinted(f"/items/{target['vintedId']}-x")
-    await wait_btn(p2, "Salvato in Vintory")
-    await env.wait_for(lambda: env.A("archive.listAll().then((a) => a.filter((l) => l.ids.catalogId === arg && !l.category).length === 0)", target["ids"]["catalogId"]), what="nome della categoria imparato e applicato agli altri annunci")
-    await p2.close()
+    # 1.0.2: il nome della categoria si impara durante l'importazione, una pagina per categoria mai vista.
+    check(all(l["category"] for l in imported), f"categorie: {[l['category'] for l in imported]}")
+    page_reads = [r for r in env.fake.requests if r[0] == "GET" and re.match(r"^/items/\d+$", r[1]) and any(r[1] == f"/items/{l['vintedId']}" for l in imported)]
+    check(len(page_reads) <= len({l["ids"]["catalogId"] for l in imported}), f"al massimo una pagina per categoria: {len(page_reads)}")
     job = (await env.A("db.getAll('jobs')"))[0]
     check(job["status"] == "done" and all(i["status"] == "done" and "wardrobe" not in i for i in job["items"]), f"cronologia: {job['status']}")
-    return "pulsante sull'armadio → 110 letti in 2 pagine, 107 proposti, 8 scelti e salvati con 5 foto"
+    return "pulsante sull'armadio → 110 letti in 2 pagine, 107 proposti, 8 scelti e salvati con 5 foto e categoria"
 
 
 async def t_import_blocked_resume(env):
@@ -169,7 +165,7 @@ async def t_import_blocked_resume(env):
     for i in range(6):
         await env.ui.locator("#preview .item.pv .pick input").nth(i).check()
     third = [it for it in env.fake.items.values() if it["title"] == ids[2]][0]["id"]
-    env.fake.fail = {rf"/api/v2/items/{third}/details": 429}
+    env.fake.fail = {rf"/api/v2/item_upload/items/{third}": 429}
     before = len(await env.listings())
     await env.ui.locator("#import-start").click()
     await env.ui.locator('details.job[data-status="blocked"]').wait_for(timeout=60000)
@@ -503,7 +499,7 @@ async def t_updates_and_links(env):
     await env.ui.locator("#update").click()
     await env.ui.locator(".modal", has_text="Aggiornamento disponibile").wait_for(timeout=15000)
     text = await env.ui.locator(".modal").inner_text()
-    check("1.1.0" in text and "Novità di prova" in text and "1.0.0" in text, f"finestra: {text[:200]}")
+    check("1.1.0" in text and "Novità di prova" in text and json.load(open("manifest.json"))["version"] in text, f"finestra: {text[:200]}")
     href = await env.ui.locator('#links a[data-link="discord"]').get_attribute("href")
     kofi = await env.ui.locator('#links a[data-link="kofi"]').get_attribute("href")
     check(href == "https://discord.gg/NUOVOINVITO", f"Discord aggiornato da links.json: {href}")
@@ -590,6 +586,107 @@ async def t_trash_expiry_and_auto_backup(env):
     return f"cestino scaduto svuotato con le foto, {note}, indicatore dello spazio e promemoria"
 
 
+async def t_vinted_403(env):
+    """1.0.1, dal report di Andrea: token solo nella pagina «Vendi» e /items/:id sempre rifiutato (403)."""
+    fake = env.fake
+    fake.add(900077, ME, "masha_up", 7)
+    fake.add(900078, ME, "masha_up", 8)
+    fake.add(700077, OTHER, "venditrice_test", 9)
+    fake.token_in_pages = False
+    fake.fail = {r"^/api/v2/items/\d+$": 403}
+    start = len(fake.requests)
+    # 1. il mio annuncio, dalla sua pagina: token dalla pagina «Vendi», dati dal modulo di vendita
+    page = await env.vinted("/items/900077-articolo-7")
+    await wait_btn(page, "Salva in Vintory")
+    await page.locator("#vintory-host .main").click()
+    await wait_btn(page, "Salvato in Vintory")
+    l = await env.listing(900077)
+    check(l and l["owner"] == "mine" and l["photoCount"] == 5 and l["photoMissing"] == 0, f"salvato: {l and (l['owner'], l['photoCount'])}")
+    check("upload" in l["sources"] and "details" not in l["sources"], f"fonti: {l['sources']}")
+    check(l["title"] == fake.items[900077]["title"] and l["brand"] == fake.items[900077]["brand_dto"]["title"], "titolo e marca")
+    reqs = [r[1] for r in fake.requests[start:]]
+    check("/items/new" in reqs, "token letto dalla pagina «Vendi»")
+    check(reqs.count("/api/v2/items/900077") == 2, f"/items/:id rifiutato: un solo nuovo tentativo ({reqs.count('/api/v2/items/900077')})")
+    check(any(p == "/api/v2/item_upload/items/900077" and ok for p, ok in fake.csrf_ok), "modulo di vendita letto con il token giusto")
+    await page.close()
+    # 2. annuncio di altri salvato dall'elenco, senza aprirne la pagina: le API rifiutano, si legge la pagina come testo
+    r = await env.rpc("save.byId", {"origin": ORIGIN, "vintedId": "700077"})
+    check(r and r["status"] == "saved", f"esito: {r}")
+    l = await env.listing(700077)
+    it = fake.items[700077]
+    check(l["owner"] == "other" and l["sources"] == ["page"], f"proprietario e fonti: {l['owner']} {l['sources']}")
+    check(l["title"] == it["title"] and l["brand"] == it["brand_dto"]["title"] and l["size"] == it["size_title"] and l["photoCount"] == 5 and l["photoMissing"] == 0, "dati e foto dalla pagina")
+    check(l["category"] == " › ".join(n for _, n in it["_crumbs"]) and l["price"] == float(it["price"]["amount"]), f"categoria e prezzo: {l['category']} {l['price']}")
+    # 3. tutto rifiutato davvero: si ferma con un messaggio chiaro e non salva nulla
+    fake.fail = {r"^/api/v2/(items|item_upload/items)/\d+$": 403, r"^/items/9000": 403}
+    r = await env.rpc("save.byId", {"origin": ORIGIN, "vintedId": "900078"})
+    check(r["status"] == "failed" and r["stop"] and "403" in r["message"], f"esito: {r}")
+    check(await env.listing(900078) is None, "niente salvato")
+    fake.fail = {}
+    fake.token_in_pages = True
+    # 4. il report diagnostico dice cosa è successo, senza dati personali
+    await env.go("health")
+    await env.ui.locator("#copy-report").wait_for()
+    report = await env.ui.evaluate("() => { let t = ''; const orig = navigator.clipboard.writeText; navigator.clipboard.writeText = (x) => { t = x; return Promise.resolve(); }; document.querySelector('#copy-report').click(); navigator.clipboard.writeText = orig; return t; }")
+    check("Ultime letture da Vinted:" in report and "items 403 blocked (2° tentativo)" in report and "Token CSRF:" in report, f"report: {report}")
+    check("900077" not in report and "700077" not in report and fake.items[900077]["title"] not in report, "nessun id o titolo nel report")
+    await env.go("archive")
+    return "token solo nella pagina «Vendi» e /items/:id rifiutato → salvato dal modulo di vendita; annuncio altrui dalla pagina; tutto rifiutato → stop chiaro; report con l'esito di ogni lettura"
+
+
+async def t_real_shapes_102(env):
+    """1.0.2, dal backup reale di Andrea: libri, riga dell'armadio, nome della categoria, «Completa i dati mancanti»."""
+    fake = env.fake
+    libri = [(2312, "Intrattenimento"), (2319, "Libri")]
+    giochi = [(2312, "Intrattenimento"), (3045, "Videogiochi")]
+    fake.add(905090, ME, "masha_up", 10, catalog_id=2319, _crumbs=libri, size_title="", _book={"author": "Olivie Blake", "book_title": "The Atlas Six", "isbn": "9781529095258"})
+    fake.add(905091, ME, "masha_up", 11, catalog_id=2319, _crumbs=libri, size_title="Taglia unica", _book={"author": "Clea Benedetti", "isbn": "9788834744412"})
+    fake.add(905092, ME, "masha_up", 12, catalog_id=3045, _crumbs=giochi, size_title="M", _book={"manufacturer": "Sony", "model": "PS2"})
+    pages = lambda iid: len([r for r in fake.requests if r == ("GET", f"/items/{iid}")])
+    fake.fail = {r"^/api/v2/items/\d+$": 403}      # come sul Vinted reale: la scheda non dà dati
+    home = await env.vinted("/")                        # una scheda di Vinted aperta, come quando si usa Vintory
+    # 1. libro salvato senza aprirne la pagina: condizioni da item_attributes, categoria imparata con una sola pagina
+    r = await env.rpc("save.byId", {"origin": ORIGIN, "vintedId": "905090"})
+    check(r["status"] == "saved", f"esito: {r}")
+    l = await env.listing(905090)
+    check(l["category"] == "Intrattenimento › Libri", f"categoria imparata: {l['category']}")
+    check(l["condition"] == "Ottime" and l["size"] is None, f"condizioni da item_attributes: {l['condition']} / taglia {l['size']}")
+    check(l["extra"].get("author") == "Olivie Blake" and l["extra"].get("isbn") == "9781529095258" and l["extra"].get("bookTitle") == "The Atlas Six", f"dati del libro: {l['extra']}")
+    check(pages(905090) == 1, f"una sola pagina letta: {pages(905090)}")
+    # 2. stesso catalogo, dall'elenco dell'armadio: taglia dalla riga («size»), nessuna pagina in più
+    r = await env.rpc("save.byId", {"origin": ORIGIN, "vintedId": "905091", "wardrobe": fake.row(fake.items[905091])})
+    l = await env.listing(905091)
+    check(l["category"] == "Intrattenimento › Libri" and l["size"] == "Taglia unica", f"categoria e taglia: {l['category']} / {l['size']}")
+    check(pages(905091) == 0, "categoria già nota: nessuna pagina letta")
+    # 3. annuncio salvato come nella 1.0.1 (solo modulo di vendita e riga, niente nome della categoria né taglia)
+    it = fake.items[905092]
+    await env.A("archive.saveBundle({ bundle: arg, origin: 'https://www.vinted.it', accountId: '4242', source: 'import' }).then((r) => archive.patchMany([r.listing.id], (x) => { x.size = null; x.extra = {}; x.category = null; }))", {"upload": fake.upload_shape(it), "wardrobe": fake.row(it)})
+    await env.A("db.getMeta('labels', {}).then((m) => { delete m.catalog['3045']; return db.setMeta('labels', m); })")
+    l = await env.listing(905092)
+    check(l["category"] is None and l["size"] is None, "simulato com'era nella 1.0.1")
+    await env.go("archive")
+    await env.reload()
+    await env.ui.locator("#fill-note").wait_for(timeout=10000)
+    await env.ui.locator("#fill-run").click()
+    await env.toast("annunci completati", timeout=60000)
+    l = await env.listing(905092)
+    check(l["category"] == "Intrattenimento › Videogiochi" and l["size"] == "M" and l["extra"].get("manufacturer") == "Sony", f"completato: {l['category']} / {l['size']} / {l['extra']}")
+    check(pages(905092) == 1, f"una pagina per la categoria mancante: {pages(905092)}")
+    await env.reload()
+    check(await env.ui.locator("#fill-note").count() == 0, "avviso sparito")
+    # 4. scheda: dati del libro e pulsante per Vinted_Relist
+    l = await env.listing(905090)
+    await env.go(f"archive?item={l['id']}")
+    await env.ui.locator(".modal .dside").wait_for()
+    text = await env.ui.locator(".modal").inner_text()
+    check("Olivie Blake" in text and "9781529095258" in text and "Intrattenimento › Libri" in text, "autore, ISBN e categoria nella scheda")
+    check("Per Vinted_Relist" in await env.ui.locator(".modal .actions").inner_text(), "pulsante per Vinted_Relist nella scheda")
+    await env.close_modals()
+    await home.close()
+    fake.fail = {}
+    return "libro: condizioni da item_attributes, autore e ISBN, categoria imparata con una pagina e riusata; taglia dalla riga dell'armadio; «Completa i dati mancanti» sistema un annuncio della 1.0.1"
+
+
 async def t_restart_persistence(env_holder):
     """Criterio MVP: tutto resta dopo aver chiuso completamente il browser."""
     env = env_holder["env"]
@@ -644,6 +741,8 @@ SCENARIOS = [
     ("Aggiornamenti e collegamenti", t_updates_and_links),
     ("Simili, statistiche, impostazioni, tema", t_pages_theme),
     ("Cestino scaduto, backup automatico, spazio", t_trash_expiry_and_auto_backup),
+    ("Vinted reale: token e 403 (1.0.1)", t_vinted_403),
+    ("Dati reali e completamento (1.0.2)", t_real_shapes_102),
     ("Persistenza dopo il riavvio del browser", t_restart_persistence),
     ("Sola lettura e assenza di errori", t_read_only),
 ]

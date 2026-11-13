@@ -1,12 +1,13 @@
 {
-  "version": "1.0.0",
+  "version": "1.0.2",
   "date": "2026-11-13",
-  "zip": "Vintory-1.0.0.zip",
-  "sha256": "62e717670ac23ab36af73bcc28381e15908b4137c3bf6e2331b933e62158df6c",
+  "zip": "Vintory-1.0.2.zip",
+  "sha256": "4ae63bd61c1fd2adc8f16992a026badcc927561cbd23af2994e0768e4a558817",
   "notes": [
-    "Prima versione: salvataggio degli annunci con tutte le foto, dal popup o dalla pagina",
-    "Importazione da un armadio con anteprima, ripresa e cronologia",
-    "Archivio con ricerca, filtri, collezioni, preferiti, versioni e cestino",
-    "Backup e ripristino in ZIP, backup automatico, esportazione CSV ed Excel"
+    "Categoria: il nome si impara leggendo una pagina per categoria e vale per tutti gli annunci",
+    "Taglia, marca e condizioni lette anche dalla riga dell'armadio e dal modulo di vendita",
+    "Libri e simili: autore, titolo, ISBN, produttore, modello e misure nella scheda",
+    "«Completa i dati mancanti» sistema gli annunci già archiviati",
+    "Pulsante «Per Vinted_Relist» direttamente nella scheda"
   ]
 }

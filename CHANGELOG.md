@@ -2,6 +2,31 @@
 
 Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/) e le versioni seguono [Semantic Versioning](https://semver.org/lang/it/).
 
+## [1.0.2] - 2026-11-13
+
+Correzioni dei dati, viste sul primo archivio reale (41 annunci importati con la 1.0.1).
+
+### Corretto
+- **Categoria vuota** negli annunci importati: Vinted dà solo il numero. Ora Vintory legge il nome dalla pagina di un annuncio, una sola volta per categoria, e lo usa per tutti gli altri. Il percorso si riconosce dai link `/catalog/<numero>` della pagina e deve finire con la categoria dell'annuncio, così il menu del sito non viene scambiato per una categoria.
+- **Taglia e marca** perse nell'importazione: la riga dell'armadio le dà come testo (`size`, `brand`) e non venivano lette.
+- **Condizioni** lette anche da `item_attributes` del modulo di vendita, dove le mette Vinted per libri e simili.
+
+### Nuovo
+- Libri, elettronica e simili: autore, titolo del libro, ISBN, produttore, modello e misure nella scheda, nella ricerca e nell'esportazione CSV/Excel (autore e ISBN).
+- **«Completa i dati mancanti»** (avviso nell'archivio e pagina Salute): completa gli annunci già salvati prima con i dati che Vintory ha già, poi leggendo una pagina per ogni categoria senza nome. Si ferma davanti a CAPTCHA o 429. Dopo l'aggiornamento la parte che non richiede Vinted parte da sola.
+- Pulsante **«Per Vinted_Relist»** nella scheda dei tuoi annunci (prima era solo dentro «Prepara»). L'esportazione include anche i dati dei libri.
+
+## [1.0.1] - 2026-11-13
+
+### Corretto
+- Salvataggio e importazione si fermavano subito con «Vinted ha rifiutato la richiesta (403)». Le cause: il token CSRF non veniva trovato nelle pagine di Vinted, nessun nuovo tentativo dopo un 403, e la prima lettura era un indirizzo che su Vinted non esiste.
+- Il token CSRF si cerca come in Vinted_Relist: dalle richieste del sito, dagli script della pagina (anche con le virgolette protette) e, se serve, dalla pagina «Vendi». Dopo un 403 si rinnova il token e si riprova una sola volta.
+- Per i tuoi annunci si legge prima il modulo di vendita (`/item_upload/items/<id>`), poi la scheda. Un 403 su una fonte fa passare alla successiva; se le API non rispondono, si legge la pagina dell'annuncio.
+- CAPTCHA, 429 e sessione scaduta fermano tutto come prima. Un 403 ferma la lettura solo se lo danno tutte le fonti, e il messaggio dice quali.
+
+### Nuovo
+- Il report diagnostico mostra l'esito di ogni lettura da Vinted (codice, tipo, secondo tentativo) e da dove arriva il token, senza id, titoli o token.
+
 ## [1.0.0] - 2026-11-13
 
 Prima versione.

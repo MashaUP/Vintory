@@ -18,14 +18,17 @@ I moduli di `src/shared` non conoscono l'interfaccia: `model.js`, `zip.js` e `ut
 
 1. Il service worker chiede alla scheda di Vinted (`vy:read`) di leggere un annuncio.
 2. `vinted.js` fa le richieste **dentro la pagina**, con i cookie dell'utente, e solo dopo `VYGuard.assertAllowed`:
-   - `/items/:id/details`, poi `/items/:id` → scheda dell'annuncio;
-   - `/item_upload/items/:id` → dati del modulo di vendita, solo se l'annuncio può essere tuo;
-   - etichette e percorso della categoria dalla pagina, se sei su quell'annuncio.
+   - `/item_upload/items/:id` → dati del modulo di vendita, prima di tutto e solo se l'annuncio può essere tuo (come Vinted_Relist);
+   - `/items/:id` → scheda dell'annuncio; se rifiuta anche dopo il nuovo tentativo e il modulo di vendita ha risposto, per i tuoi annunci non si richiede più fino al ricaricamento della pagina;
+   - etichette e percorso della categoria dalla pagina, se sei su quell'annuncio; se nessuna API ha risposto, la pagina dell'annuncio scaricata come testo (`DOMParser`, nessuno script eseguito).
+   Ogni richiesta API porta `X-CSRF-Token`: intercettato dalle richieste del sito, altrimenti dagli script della pagina (anche nel payload di Next.js con le virgolette protette), altrimenti dalla pagina «Vendi» (`/items/new`). Un 403 senza CAPTCHA rinnova il token e riprova **una sola volta**.
 3. Il risultato è un `bundle` (`details`, `upload`, `wardrobe`, `page`). `model.normalizeBundle` lo trasforma nella scheda; il bundle intero resta in `raw`.
 
 Proprietario: «mio» solo se l'id del venditore coincide con l'id letto dal cookie `v_uid` (o dal `sub` del token). Nel dubbio «altri».
 
-CAPTCHA, 401, 403 e 429 fermano la lettura e, nell'importazione, tutto il lavoro.
+CAPTCHA, 401 e 429 fermano subito la lettura e, nell'importazione, tutto il lavoro. Un 403 confermato dopo il nuovo tentativo fa passare alla fonte successiva; se tutte rifiutano, la lettura si ferma.
+
+Ogni esito (codice HTTP, tipo, secondo tentativo) e l'origine del token finiscono nel report diagnostico, senza id, titoli o token.
 
 «Non più online» lo decide la pagina pubblica dell'annuncio (stato 404), non un 404 delle API: se Vinted cambiasse le sue API, gli annunci non devono sembrare eliminati.
 

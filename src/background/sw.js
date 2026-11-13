@@ -146,6 +146,19 @@ async function readItem({ tabId, origin, id, accountId, wardrobe = null }) {
   return r;
 }
 
+/**
+ * Se Vinted ha dato solo il numero della categoria e il suo nome non è ancora noto, legge la pagina
+ * dell'annuncio (una volta per categoria) e aggiunge al bundle il percorso trovato.
+ * Restituisce un errore solo se Vinted chiede di fermarsi (CAPTCHA, 429): il nome della categoria è facoltativo.
+ */
+async function addCategory(tabId, origin, id, bundle) {
+  const catalogId = await archive.missingCatalog(bundle, origin);
+  if (!catalogId) return null;
+  const r = await askTab(tabId, { type: "vy:page", id: String(id), catalogId });
+  if (r.ok && r.page?.catalog) bundle.page = bundle.page ? { ...bundle.page, catalog: r.page.catalog } : r.page;
+  return !r.ok && ["captcha", "rate"].includes(r.kind) ? r : null;
+}
+
 async function saveFromTab(tabId, { confirmOther = false } = {}) {
   const tab = await chrome.tabs.get(tabId);
   const p = parseVintedUrl(tab.url || "");
@@ -158,6 +171,10 @@ async function saveFromTab(tabId, { confirmOther = false } = {}) {
   const existing = await archive.findByVintedId(n.vintedId);
   if (!existing && !confirmOther && ownerOf(n, accountId, { uploadOk: Boolean(r.bundle.upload) }) === "other") {
     return { status: "needsConfirm", seller: n.sellerLogin, title: n.title };
+  }
+  if (!existing) {
+    const stop = await addCategory(tabId, p.origin, p.id, r.bundle);
+    if (stop) throw new Error(stop.message);
   }
   const res = await archive.saveBundle({ bundle: r.bundle, origin: p.origin, accountId, source: "manual" });
   recent.delete(`${tabId}:${p.id}`);
@@ -174,6 +191,8 @@ async function saveById({ origin, vintedId, tabId = null, wardrobe = null, jobId
     return await withTab({ origin, tabId }, async (tab) => {
       const r = await askTab(tab.id, { type: "vy:read", id: String(vintedId), accountId, wardrobe });
       if (!r.ok) return { status: "failed", kind: r.kind, stop: STOP_KINDS.includes(r.kind), message: r.message };
+      const stop = (await archive.findByVintedId(String(vintedId))) ? null : await addCategory(tab.id, origin, vintedId, r.bundle);
+      if (stop) return { status: "failed", kind: stop.kind, stop: true, message: stop.message };
       const res = await archive.saveBundle({ bundle: r.bundle, origin, accountId, source: "import", jobId });
       refreshItemTabs(String(vintedId));
       return summary(res);
@@ -211,6 +230,37 @@ async function checkOnline({ listingId }) {
     if (r.online !== "unknown") await archive.patchMany([l.id], (x) => { x.online = r.online; x.onlineCheckedAt = Date.now(); });
     return { ok: true, online: r.online };
   });
+}
+
+/**
+ * Completa gli annunci già archiviati (1.0.2): prima con i dati già salvati, poi leggendo
+ * una pagina per ogni categoria di cui manca il nome. Si ferma davanti a CAPTCHA o 429.
+ */
+async function fillMissing() {
+  const filledLocal = await archive.refill();
+  const todo = new Map();
+  for (const l of await archive.listAll()) {
+    const cid = l.ids?.catalogId;
+    if (l.deletedAt || l.category || !cid || todo.has(cid) || l.online === "offline" || (await archive.labelFor("catalog", cid))) continue;
+    todo.set(cid, l);
+  }
+  const report = { filledLocal, categories: todo.size, learned: 0, failed: 0, stopped: null, filled: 0 };
+  if (todo.size) {
+    const s = await getSettings();
+    const first = [...todo.values()][0];
+    await withTab({ origin: first.origin, url: `${first.origin}/` }, async (tab) => {
+      let i = 0;
+      for (const [cid, l] of todo) {
+        if (i++) await new Promise((r) => setTimeout(r, s.importDelay.min + Math.random() * (s.importDelay.max - s.importDelay.min)));
+        const r = await askTab(tab.id, { type: "vy:page", id: l.vintedId, catalogId: cid });
+        if (r.ok && r.page?.catalog?.names?.length && String(r.page.catalog.id) === String(cid)) { await archive.learnLabel("catalog", cid, r.page.catalog.names.join(" › ")); report.learned++; } else report.failed++;
+        if (!r.ok && ["captcha", "rate", "auth"].includes(r.kind)) { report.stopped = r.message; break; }
+      }
+    });
+  }
+  report.filled = (await archive.refill()) + filledLocal;
+  broadcast("vy:changed", { reason: "fill" });
+  return report;
 }
 
 async function listVintedTabs() {
@@ -271,6 +321,7 @@ async function handle(method, p, sender) {
       });
     }
     case "vinted.tabs": return listVintedTabs();
+    case "fill.missing": return fillMissing();
     case "account.get": {
       if (p.origin) return { userId: await accountFor(p.origin), origin: p.origin };
       const tabs = await listVintedTabs();
@@ -291,6 +342,14 @@ async function handle(method, p, sender) {
     case "update.download": return downloadUpdate();
     case "update.reload": setTimeout(() => chrome.runtime.reload(), 150); return true;
     case "links.get": return getLinks({ force: Boolean(p.force) });
+    case "diag.save": {
+      // Solo esiti tecnici (codice HTTP, tipo di errore, da dove arriva il token): niente id, titoli o token.
+      const calls = {};
+      for (const [k, v] of Object.entries(p.calls || {})) if (/^[a-z_ ]{2,20}$/i.test(k)) calls[k] = { status: Number(v?.status) || 0, kind: String(v?.kind || "").slice(0, 20), retried: Boolean(v?.retried), at: Number(v?.at) || Date.now() };
+      const prev = await getState("probe", { calls: {} });
+      await setState("probe", { csrf: p.csrf ? String(p.csrf).slice(0, 20) : prev.csrf || null, calls: { ...prev.calls, ...calls }, version: String(p.version || "").slice(0, 12), at: Date.now() });
+      return true;
+    }
     case "changed": broadcast("vy:changed", { reason: p.reason || "ui" }); return true;
     case "popup.summary": {
       const all = (await archive.listAll()).filter((l) => !l.deletedAt);
@@ -359,6 +418,8 @@ chrome.notifications.onClicked.addListener((id) => { openDashboard(id === "updat
 chrome.runtime.onInstalled.addListener(async (d) => {
   await ensureAlarms();
   if (d.reason === "install") { await setState("installedAt", Date.now()); openDashboard("welcome"); }
+  // Dopo un aggiornamento: completa gli annunci con i dati già salvati (nessuna richiesta a Vinted).
+  if (d.reason === "update") archive.refill().then((n) => { if (n) broadcast("vy:changed", { reason: "refill" }); }).catch((e) => logError("refill", e));
 });
 chrome.runtime.onStartup.addListener(ensureAlarms);
 ensureAlarms().catch(() => {});

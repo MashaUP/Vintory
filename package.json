@@ -1,6 +1,6 @@
 {
   "name": "vintory",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "private": true,
   "description": "Vintory — archivio personale degli annunci Vinted (estensione Manifest V3). Nessuna dipendenza a runtime: npm serve solo per test e pacchetto.",
   "type": "module",

@@ -71,6 +71,68 @@ async function applyLabels(n) {
   if (learned.length) await backfillLabels(learned);
 }
 
+/** Il nome di questa categoria manca e non è ancora stato imparato: serve leggere la pagina dell'annuncio. */
+export async function missingCatalog(bundle, origin) {
+  const n = normalizeBundle(bundle, origin);
+  if (!n?.ids.catalogId || n.category) return null;
+  const labels = await db.getMeta("labels", {});
+  return labels.catalog?.[n.ids.catalogId] ? null : n.ids.catalogId;
+}
+
+export async function learnLabel(kind, id, name) {
+  if (!id || !name) return;
+  const labels = await db.getMeta("labels", {});
+  if (labels[kind]?.[id] === name) return;
+  (labels[kind] ||= {})[id] = name;
+  await db.setMeta("labels", labels);
+}
+
+export async function labelFor(kind, id) {
+  return (await db.getMeta("labels", {}))[kind]?.[id] || null;
+}
+
+const EMPTY = (v) => v == null || v === "" || (Array.isArray(v) && !v.length);
+
+/**
+ * Completa gli annunci già archiviati con ciò che i dati originali e le etichette imparate sanno già:
+ * marca, categoria, taglia, colore, condizioni, dati dei libri. Non tocca i campi modificati a mano
+ * né quelli già pieni. Nessuna richiesta a Vinted.
+ */
+export async function refill({ ids = null } = {}) {
+  const labels = await db.getMeta("labels", {});
+  let changed = 0;
+  for (const l of await listAll()) {
+    if (ids && !ids.includes(l.id)) continue;
+    const raw = await db.get("raw", l.id);
+    const src = raw?.latest?.bundle || raw?.bundle;
+    const n = src ? normalizeBundle(src, l.origin) : null;
+    const edited = new Set(l.editedFields || []);
+    let dirty = false;
+    if (n) {
+      for (const f of ["brand", "category", "size", "colors", "condition"]) {
+        if (!edited.has(f) && EMPTY(l[f]) && !EMPTY(n[f])) { l[f] = n[f]; dirty = true; }
+      }
+      const ids2 = { ...(l.ids || {}) };
+      for (const [k, v] of Object.entries(n.ids)) if (EMPTY(ids2[k]) && !EMPTY(v)) { ids2[k] = v; dirty = true; }
+      l.ids = ids2;
+      if (Object.keys(n.extra || {}).length && JSON.stringify(n.extra) !== JSON.stringify(l.extra || {})) { l.extra = { ...(l.extra || {}), ...n.extra }; dirty = true; }
+    }
+    const fromLabel = (field, kind, id) => {
+      if (!edited.has(field) && EMPTY(l[field]) && id && labels[kind]?.[id]) { l[field] = labels[kind][id]; dirty = true; }
+    };
+    fromLabel("category", "catalog", l.ids?.catalogId);
+    fromLabel("brand", "brand", l.ids?.brandId);
+    fromLabel("size", "size", l.ids?.sizeId);
+    fromLabel("condition", "status", l.ids?.statusId);
+    if (!edited.has("colors") && EMPTY(l.colors) && (l.ids?.colorIds || []).length) {
+      const c = l.ids.colorIds.map((id) => labels.color?.[id]).filter(Boolean);
+      if (c.length) { l.colors = c; dirty = true; }
+    }
+    if (dirty) { await db.put("listings", l); changed++; }
+  }
+  return changed;
+}
+
 // ---------------------------------------------------------------- foto
 
 async function downloadPhotos(listingId, photos, reuse = new Map(), onProgress = null) {
@@ -229,6 +291,7 @@ export async function applyUpdate(listingId, { bundle }, fields = [], { onProgre
     images = r.images; thumbs = r.thumbs;
     photoSummary(listing, images);
   }
+  if (Object.keys(n.extra || {}).length) listing.extra = { ...(listing.extra || {}), ...n.extra };
   listing.ids = { ...listing.ids, ...Object.fromEntries(Object.entries(n.ids).filter(([, v]) => v != null && !(Array.isArray(v) && !v.length))) };
   listing.state = n.state;
   listing.online = n.state === "sold" ? "sold" : "online";

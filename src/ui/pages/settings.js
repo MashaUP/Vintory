@@ -6,6 +6,7 @@ import { getState, setState } from "../../shared/store.js";
 import { VERSION, REPO } from "../../shared/constants.js";
 import { fmtDate, fmtBytes } from "../../shared/util.js";
 import { showUpdate } from "../update-ui.js";
+import { fillMissing, missingCategory } from "../fill.js";
 
 export async function renderSettings(main) {
   const s = S.settings;
@@ -58,7 +59,7 @@ export async function renderSettings(main) {
 }
 
 export async function renderHealth(main) {
-  const [counts, info, errors, update, account] = await Promise.all([archive.counts(), archive.storageInfo(), getState("errors", []), getState("update", null), rpc("account.get").catch(() => ({}))]);
+  const [counts, info, errors, update, account, probe] = await Promise.all([archive.counts(), archive.storageInfo(), getState("errors", []), getState("update", null), rpc("account.get").catch(() => ({})), getState("probe", null)]);
   const perms = await chrome.permissions.getAll();
   const reportBox = h("div", { id: "integrity" });
   const lines = () => [
@@ -67,6 +68,8 @@ export async function renderHealth(main) {
     `Spazio: ${fmtBytes(info.usage)} su ${fmtBytes(info.quota)} · permanente: ${info.persisted}`,
     `Account Vinted rilevato: ${account?.userId ? "sì" : "no"}`,
     `Permessi: ${perms.permissions.join(", ")}`, `Domini: ${perms.origins.length}`,
+    `Token CSRF: ${probe?.csrf || "mai cercato"}`,
+    `Ultime letture da Vinted: ${probe ? Object.entries(probe.calls).map(([k, v]) => `${k} ${v.status || "-"} ${v.kind}${v.retried ? " (2° tentativo)" : ""}`).join(" · ") : "nessuna"}`,
     `Aggiornamenti: ${update ? (update.ok ? `ok, ultima ${update.latest}` : update.error) : "mai controllato"}`,
     `Errori recenti: ${errors.length}`, ...errors.slice(0, 20).map((e) => `- ${new Date(e.at).toISOString()} [${e.where}] ${e.message}`),
   ].join("\n");
@@ -95,6 +98,10 @@ export async function renderHealth(main) {
       h("p", { class: "muted" }, t("Verifica che ogni foto sia presente, non vuota, identica a quando è stata salvata e apribile.")),
       h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", id: "integrity-run", disabled: !counts.listings, onClick: () => integrity(false) }, icon("shield"), t("Controlla tutte le foto"))),
       reportBox),
+    h("section", { class: "card stack" }, h("h2", null, t("Dati mancanti")),
+      h("p", { class: "muted" }, t("Completa marca, taglia, condizioni, categoria e dati dei libri degli annunci già archiviati: prima con i dati salvati, poi leggendo da Vinted una pagina per ogni categoria di cui manca il nome.")),
+      h("div", { class: "row" }, h("button", { class: "btn", type: "button", id: "fill-health", onClick: async () => { await fillMissing(); rerender(); } }, icon("refresh", 15), t("Completa i dati mancanti")),
+        h("span", { class: "small muted" }, t("Senza nome della categoria: {n}", { n: missingCategory().length })))),
     h("section", { class: "card stack" }, h("h2", null, t("Registro degli errori")),
       errors.length ? h("div", { class: "table-wrap" }, h("table", { class: "table" }, h("tbody", null, errors.slice(0, 50).map((e) => h("tr", null, h("td", { class: "small" }, fmtDate(e.at, true)), h("td", { class: "mono" }, e.where), h("td", null, e.message)))))) : h("p", { class: "muted" }, t("Nessun errore registrato.")),
       h("div", { class: "row" },

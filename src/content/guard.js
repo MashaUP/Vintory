@@ -9,12 +9,15 @@
   "use strict";
   const ALLOWED = [
     /^\/items\/\d+$/,
-    /^\/items\/\d+\/details$/,
     /^\/item_upload\/items\/\d+$/,
     /^\/wardrobe\/\d+\/items\?page=\d{1,4}&per_page=\d{1,3}&order=newest_first$/,
   ];
-  /** Pagine del sito (non API): solo la pagina pubblica di un annuncio, per sapere se esiste ancora. */
-  const ALLOWED_PAGES = [/^\/items\/\d+$/];
+  /**
+   * Pagine del sito (non API), lette come testo:
+   *  - la pagina pubblica di un annuncio: se esiste ancora e i suoi dati quando le API non rispondono;
+   *  - la pagina «Vendi» (/items/new), solo per leggerne il token CSRF, come fa Vinted_Relist.
+   */
+  const ALLOWED_PAGES = [/^\/items\/\d+$/, /^\/items\/new$/];
 
   class ReadOnlyGuardError extends Error {
     constructor(message) { super(message); this.name = "ReadOnlyGuardError"; }

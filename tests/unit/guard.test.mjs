@@ -8,10 +8,12 @@ const { assertAllowed } = globalThis.VYGuard;
 const ROOT = path.resolve(import.meta.dirname, "../..");
 
 test("sola lettura: passano solo le GET previste", () => {
-  for (const p of ["/items/123", "/items/123/details", "/item_upload/items/123", "/wardrobe/77/items?page=2&per_page=96&order=newest_first"]) assert.equal(assertAllowed("GET", p), true, p);
+  for (const p of ["/items/123", "/item_upload/items/123", "/wardrobe/77/items?page=2&per_page=96&order=newest_first"]) assert.equal(assertAllowed("GET", p), true, p);
+  assert.throws(() => assertAllowed("GET", "/items/123/details"), /rifiutata/, "percorso ipotizzato nella 1.0.0, non esiste");
+  for (const p of ["/items/123", "/items/new"]) assert.equal(assertAllowed("GET", p, "page"), true, p);
   assert.equal(assertAllowed("get", "/items/1"), true);
   assert.equal(assertAllowed("GET", "/items/123", "page"), true);
-  for (const p of ["/items/123/edit", "/items/new", "/member/1", "/inbox", "/checkout", "/items/123/details", "/"]) assert.throws(() => assertAllowed("GET", p, "page"), /rifiutata/, p);
+  for (const p of ["/items/123/edit", "/items/new/x", "/member/1", "/inbox", "/checkout", "/items/123/details", "/"]) assert.throws(() => assertAllowed("GET", p, "page"), /rifiutata/, p);
   assert.throws(() => assertAllowed("POST", "/items/123", "page"), /sola lettura/);
   assert.throws(() => assertAllowed("GET", "/items/123", "altro"), /rifiutata/);
 });

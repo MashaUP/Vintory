@@ -195,6 +195,7 @@ export async function openDetail(id, { update = false } = {}) {
       act(l.favorite ? t("Togli dai preferiti") : t("Preferito"), l.favorite ? "star-full" : "star", async () => { await archive.patchMany([l.id], (x) => { x.favorite = !x.favorite; }); await changed(); refresh(); }),
       act(t("Collezioni…"), "folder", async () => { if (await pickCollections([l.id])) { await changed(); refresh(); } }),
       act(t("Foto (ZIP)"), "download", () => photosZip([l])),
+      isMine ? act(t("Per Vinted_Relist"), "upload", () => relistZip(l).catch((e) => toast(e.message, "bad"))) : null,
       h("select", { class: "input", style: { width: "auto", minHeight: "30px", padding: "3px 8px" }, "aria-label": t("Copia"), onChange: (e) => {
         const k = e.target.value; e.target.value = "";
         if (k === "title") copyText(l.title); else if (k === "description") copyText(l.description || ""); else if (k === "all") copyText(fullText(l)); else if (k === "url" && url) copyText(url);
@@ -216,7 +217,8 @@ export async function openDetail(id, { update = false } = {}) {
         l.remoteChanged ? h("div", { class: "note warn" }, t("Su Vinted questo annuncio è cambiato dopo il salvataggio."), " ", h("a", { href: "#", onClick: (e) => { e.preventDefault(); updateFromVinted(l, refresh); } }, t("Rivedi le differenze"))) : null,
         similar.length ? h("div", { class: "note" }, t("Somiglia a {n} annunci già in archivio (stessa foto o stesso titolo):", { n: similar.length }), " ", similar.slice(0, 4).map((s, i) => [i ? ", " : "", h("a", { href: "#", onClick: (e) => { e.preventDefault(); m.close(); openDetail(s.id); } }, S.byId.get(s.id)?.title || s.id)])) : null,
         h("div", { class: "desc" }, l.description || h("span", { class: "muted" }, t("Nessuna descrizione"))),
-        dl([["Marca", l.brand], ["Categoria", l.category || (l.ids?.catalogId ? t("n. {id} (il nome arriva appena salvi un annuncio di questa categoria dalla sua pagina)", { id: l.ids.catalogId }) : null)], ["Taglia", l.size], ["Colore", (l.colors || []).join(", ")], ["Condizioni", l.condition],
+        dl([["Marca", l.brand], ["Categoria", l.category || (l.ids?.catalogId ? t("n. {id} (nome da completare: Salute › «Completa i dati mancanti»)", { id: l.ids.catalogId }) : null)], ["Taglia", l.size], ["Colore", (l.colors || []).join(", ")], ["Condizioni", l.condition],
+          ["Autore", l.extra?.author], ["Titolo del libro", l.extra?.bookTitle], ["ISBN", l.extra?.isbn], ["Produttore", l.extra?.manufacturer], ["Modello", l.extra?.model], ["Misure", l.extra?.measures],
           ["Venditore", l.sellerLogin || (isMine ? t("Tu") : null)], ["ID Vinted", l.vintedId], ["Pubblicato", l.publishedAt ? fmtDate(l.publishedAt) : null], ["Salvato", fmtDate(l.savedAt, true)],
           ["Ultimo confronto con Vinted", fmtDate(l.onlineCheckedAt, true)], ["Foto", `${l.photoCount}${l.photoMissing ? ` (${t("{n} mancanti", { n: l.photoMissing })})` : ""}`],
           ...Object.entries(l.custom || {}).filter(([, v]) => v), l.notes ? ["Note", l.notes] : [null, null]]));

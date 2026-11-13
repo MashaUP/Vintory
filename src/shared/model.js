@@ -71,6 +71,19 @@ const conditionOf = (o) => {
   return s || str(o?.item_status) || null;
 };
 
+/** Dati in più che Vinted dà per alcune categorie (libri, elettronica, misure). */
+function extraOf(...objs) {
+  const get = (k) => objs.map((o) => o?.[k]).find((v) => v != null && v !== "" && typeof v !== "object");
+  const len = get("measurement_length");
+  const wid = get("measurement_width");
+  const out = {
+    author: str(get("author")), bookTitle: str(get("book_title")), isbn: get("isbn") != null ? String(get("isbn")) : null,
+    manufacturer: str(get("manufacturer")), model: str(get("model")),
+    measures: len || wid ? `${[len, wid].filter((x) => x != null).join(" × ")} ${str(get("measurement_unit")) || "cm"}` : null,
+  };
+  return Object.fromEntries(Object.entries(out).filter(([, v]) => v));
+}
+
 /**
  * Unisce le letture disponibili di uno stesso annuncio:
  *   upload   → /item_upload/items/:id (solo il proprietario: dati del modulo di vendita)
@@ -85,11 +98,16 @@ export function normalizeBundle(bundle, origin) {
   const pg = bundle?.page || null;
   const vintedId = idStr(pick(up?.id, det?.id, wd?.id, pg?.id));
   if (!vintedId) return null;
-  const statusId = pick(up?.status_id, det?.status_id);
+  // Nel modulo di vendita reale le condizioni possono stare solo in item_attributes: [{ code: "condition", ids: [1] }].
+  const attrCondition = [up, det].map((o) => (Array.isArray(o?.item_attributes) ? o.item_attributes.find((a) => a?.code === "condition")?.ids?.[0] : null)).find((x) => x != null);
+  const statusId = pick(up?.status_id, det?.status_id, attrCondition);
   const path = pick(det?.path, wd?.path, str(det?.url) && !/^https?:/.test(det.url) ? det.url : null, str(wd?.url) && !/^https?:/.test(wd.url) ? wd.url : null);
   const absUrl = [det?.url, wd?.url, pg?.url].find((u) => typeof u === "string" && /^https?:/.test(u));
   const colors = pick(colorList(det), colorList(up), colorList(wd), pg?.attrs?.color ? String(pg.attrs.color).split(/\s*,\s*/).filter(Boolean) : null) || [];
   const crumbs = Array.isArray(pg?.breadcrumbs) ? pg.breadcrumbs.map((c) => String(c).trim()).filter(Boolean) : [];
+  const catalogId = idStr(pick(up?.catalog_id, det?.catalog_id, pg?.catalog?.id));
+  // Il percorso della categoria dai link /catalog/<id> della pagina vale solo se finisce con la categoria dell'annuncio.
+  const trail = pg?.catalog?.names?.length && (!catalogId || String(pg.catalog.id) === catalogId) ? pg.catalog.names.map((c) => String(c).trim()).filter(Boolean) : [];
   const n = {
     vintedId,
     origin,
@@ -98,18 +116,19 @@ export function normalizeBundle(bundle, origin) {
     description: pick(up?.description, det?.description, pg?.description) != null ? String(pick(up?.description, det?.description, pg?.description)) : "",
     price: num(pick(up?.price, det?.price, det?.price_numeric, wd?.price, pg?.price)),
     currency: pick(det?.price?.currency_code, up?.price?.currency_code, wd?.price?.currency_code, up?.currency, det?.currency, wd?.currency, pg?.currency) || "EUR",
-    brand: pick(str(det?.brand_dto?.title), str(det?.brand_title), str(det?.brand), str(det?.brand?.title), str(up?.brand_dto?.title), str(up?.brand_title), str(up?.brand), str(wd?.brand_title), str(pg?.attrs?.brand)),
-    category: pick(crumbs.length ? crumbs.join(" › ") : null, str(det?.catalog_title), str(up?.catalog_title), str(pg?.attrs?.category)),
-    size: pick(str(det?.size_title), str(det?.size), str(up?.size_title), str(up?.size), str(wd?.size_title), str(pg?.attrs?.size)),
+    brand: pick(str(det?.brand_dto?.title), str(det?.brand_title), str(det?.brand), str(det?.brand?.title), str(up?.brand_dto?.title), str(up?.brand_title), str(up?.brand), str(wd?.brand_title), str(wd?.brand), str(pg?.attrs?.brand)),
+    category: pick(trail.length ? trail.join(" › ") : null, str(det?.catalog_title), str(up?.catalog_title), !catalogId && crumbs.length ? crumbs.join(" › ") : null, str(pg?.attrs?.category)),
+    size: pick(str(det?.size_title), str(det?.size), str(up?.size_title), str(up?.size), str(wd?.size_title), str(wd?.size), str(pg?.attrs?.size)),
     colors,
     condition: pick(conditionOf(det), conditionOf(wd), str(pg?.attrs?.status), CONDITION_BY_STATUS_ID[statusId] || null),
     ids: {
       brandId: idStr(pick(up?.brand_id, det?.brand_id, det?.brand_dto?.id)),
-      catalogId: idStr(pick(up?.catalog_id, det?.catalog_id)),
+      catalogId,
       sizeId: idStr(pick(up?.size_id, det?.size_id)),
       statusId: idStr(statusId),
       colorIds: pick(colorIds(up), colorIds(det)) || [],
     },
+    extra: extraOf(up, det),
     sellerId: idStr(pick(det?.user?.id, det?.user_id, up?.user_id, up?.user?.id, wd?.user?.id, wd?.user_id, pg?.sellerId)),
     sellerLogin: pick(str(det?.user?.login), str(wd?.user?.login), str(up?.user?.login), str(pg?.sellerLogin)),
     publishedAt: ts(pick(det?.created_at_ts, det?.created_at, up?.created_at_ts, up?.created_at, wd?.created_at_ts, wd?.created_at)),
@@ -161,7 +180,7 @@ export function diffListing(archived, current, archivedPhotoKeys = []) {
 export const EMPTY_FILTER = { q: "", brand: [], category: [], size: [], color: [], condition: [], priceMin: null, priceMax: null, favorite: false, collection: null, online: null, seller: null };
 
 export function searchText(l) {
-  return norm([l.title, l.description, l.brand, l.category, l.size, (l.colors || []).join(" "), l.notes, l.sellerLogin, l.vintedId].filter(Boolean).join(" "));
+  return norm([l.title, l.description, l.brand, l.category, l.size, (l.colors || []).join(" "), l.notes, l.sellerLogin, l.vintedId, l.extra?.author, l.extra?.bookTitle, l.extra?.isbn, l.extra?.manufacturer].filter(Boolean).join(" "));
 }
 
 export function matches(l, f) {
@@ -281,7 +300,7 @@ export function similarGroups(list) {
 export const EXPORT_COLUMNS = [
   ["ID Vinted", (l) => l.vintedId], ["Titolo", (l) => l.title], ["Descrizione", (l) => l.description], ["Prezzo", (l) => l.price],
   ["Valuta", (l) => l.currency], ["Marca", (l) => l.brand], ["Categoria", (l) => l.category], ["Taglia", (l) => l.size],
-  ["Colore", (l) => (l.colors || []).join(", ")], ["Condizioni", (l) => l.condition], ["Foto", (l) => l.photoCount],
+  ["Colore", (l) => (l.colors || []).join(", ")], ["Condizioni", (l) => l.condition], ["Autore", (l) => l.extra?.author], ["ISBN", (l) => l.extra?.isbn], ["Foto", (l) => l.photoCount],
   ["Proprietario", (l) => (l.owner === "mine" ? "Mio" : "Altri")], ["Venditore", (l) => l.sellerLogin], ["URL", (l) => l.url],
   ["Pubblicato", (l) => (l.publishedAt ? new Date(l.publishedAt).toISOString().slice(0, 10) : "")],
   ["Salvato", (l) => (l.savedAt ? new Date(l.savedAt).toISOString().slice(0, 10) : "")],
@@ -314,7 +333,7 @@ export function toRelistExport(listing, raw, photoFiles = []) {
     listing: {
       title: listing.title, description: listing.description, price: listing.price, currency: listing.currency,
       brand: listing.brand, category: listing.category, size: listing.size, colors: listing.colors || [], condition: listing.condition,
-      ids: listing.ids || {},
+      ids: listing.ids || {}, extra: listing.extra || {},
     },
     photos: photoFiles,
     uploadDraft: raw?.bundle?.upload || null,
