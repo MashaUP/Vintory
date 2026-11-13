@@ -1,0 +1,95 @@
+{
+  "manifest_version": 3,
+  "name": "Vintory",
+  "version": "1.0.0",
+  "description": "Archivio personale dei tuoi annunci Vinted: copia completa con foto, ricerca, backup e ripristino. Solo lettura: non pubblica e non modifica nulla su Vinted.",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "src/ui/popup.html",
+    "default_title": "Vintory",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/background/sw.js",
+    "type": "module"
+  },
+  "options_page": "src/ui/dashboard.html",
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "alarms",
+    "notifications",
+    "tabs",
+    "cookies",
+    "webRequest",
+    "downloads",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.vinted.it/*",
+    "https://www.vinted.fr/*",
+    "https://www.vinted.es/*",
+    "https://www.vinted.de/*",
+    "https://www.vinted.co.uk/*",
+    "https://www.vinted.com/*",
+    "https://www.vinted.be/*",
+    "https://www.vinted.nl/*",
+    "https://www.vinted.at/*",
+    "https://www.vinted.pt/*",
+    "https://www.vinted.pl/*",
+    "https://www.vinted.cz/*",
+    "https://www.vinted.sk/*",
+    "https://www.vinted.lt/*",
+    "https://www.vinted.lu/*",
+    "https://www.vinted.ro/*",
+    "https://www.vinted.hu/*",
+    "https://*.vinted.net/*",
+    "https://raw.githubusercontent.com/*",
+    "https://github.com/*",
+    "https://objects.githubusercontent.com/*",
+    "https://release-assets.githubusercontent.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.vinted.it/*",
+        "https://www.vinted.fr/*",
+        "https://www.vinted.es/*",
+        "https://www.vinted.de/*",
+        "https://www.vinted.co.uk/*",
+        "https://www.vinted.com/*",
+        "https://www.vinted.be/*",
+        "https://www.vinted.nl/*",
+        "https://www.vinted.at/*",
+        "https://www.vinted.pt/*",
+        "https://www.vinted.pl/*",
+        "https://www.vinted.cz/*",
+        "https://www.vinted.sk/*",
+        "https://www.vinted.lt/*",
+        "https://www.vinted.lu/*",
+        "https://www.vinted.ro/*",
+        "https://www.vinted.hu/*"
+      ],
+      "js": [
+        "src/content/guard.js",
+        "src/content/vinted.js",
+        "src/content/content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' blob: data: https://*.vinted.net"
+  }
+}

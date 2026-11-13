@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <title>Vintory</title>
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="top">
+    <img src="../../icons/icon48.png" alt="" width="28" height="28">
+    <div class="grow">
+      <h1>Vintory</h1>
+      <div class="muted small" id="version"></div>
+    </div>
+    <button class="btn sm" id="open" type="button">Apri l'archivio</button>
+  </header>
+  <main id="app" aria-busy="true"></main>
+  <footer class="foot">
+    <button class="btn sm" id="update" type="button">Cerca aggiornamento</button>
+    <span class="grow"></span>
+    <nav id="links" class="row" aria-label="Collegamenti"></nav>
+  </footer>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+/* Vintory — colori e componenti di base. Tema chiaro (viola scuro, bianco, grigio chiaro) e scuro. */
+:root {
+  --bg: #f5f4f9;
+  --surface: #ffffff;
+  --surface-2: #f3f0fa;
+  --surface-3: #e9e4f6;
+  --border: #e0d9ef;
+  --border-strong: #c8bde3;
+  --text: #1a1527;
+  --text-2: #3d3552;
+  --muted: #655c80;
+  --brand: #3b2a7a;
+  --brand-ink: #ffffff;
+  --primary: #6a47e8;
+  --primary-ink: #ffffff;
+  --primary-soft: rgba(106, 71, 232, .1);
+  --good: #1f7a4c;
+  --good-soft: rgba(31, 122, 76, .12);
+  --warn: #a85d07;
+  --warn-soft: rgba(194, 102, 10, .14);
+  --bad: #b3261e;
+  --bad-soft: rgba(179, 38, 30, .1);
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 8px 24px rgba(40, 20, 90, .1);
+  --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #0f0b18;
+  --surface: #18132290;
+  --surface: #181322;
+  --surface-2: #1f192c;
+  --surface-3: #2a2240;
+  --border: #2e2644;
+  --border-strong: #43385f;
+  --text: #f4f1fb;
+  --text-2: #cfc6e6;
+  --muted: #a297bf;
+  --brand: #241a4d;
+  --primary: #8f6ef2;
+  --primary-ink: #120c22;
+  --primary-soft: rgba(143, 110, 242, .18);
+  --good: #4ade80;
+  --good-soft: rgba(74, 222, 128, .14);
+  --warn: #fbbf24;
+  --warn-soft: rgba(251, 191, 36, .14);
+  --bad: #f87171;
+  --bad-soft: rgba(248, 113, 113, .14);
+  --shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--font); }
+a { color: var(--primary); }
+button, input, select, textarea { font: inherit; color: inherit; }
+h1, h2, h3 { margin: 0; line-height: 1.2; }
+h1 { font-size: 22px; }
+h2 { font-size: 16px; }
+h3 { font-size: 14px; }
+p { margin: 0 0 8px; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.mono { font-family: var(--mono); font-size: 12px; }
+.hidden { display: none !important; }
+:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--surface); cursor: pointer; white-space: nowrap; text-decoration: none; color: var(--text); min-height: 36px; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { color: var(--bad); border-color: var(--bad); }
+.btn.danger:hover { background: var(--bad-soft); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.ghost:hover { background: var(--surface-3); }
+.btn.sm { padding: 4px 10px; min-height: 30px; font-size: 13px; }
+.btn[disabled] { opacity: .55; cursor: not-allowed; }
+.btn.on { background: var(--primary-soft); border-color: var(--primary); }
+
+.input, select.input, textarea.input { width: 100%; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--surface); min-height: 36px; }
+textarea.input { resize: vertical; min-height: 90px; line-height: 1.45; }
+label.field { display: grid; gap: 4px; font-size: 13px; color: var(--text-2); }
+.check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.check input { width: 16px; height: 16px; accent-color: var(--primary); }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.row.between { justify-content: space-between; }
+.stack { display: grid; gap: 12px; }
+.grow { flex: 1 1 auto; min-width: 0; }
+
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: var(--surface-3); color: var(--text-2); white-space: nowrap; }
+.chip.good { background: var(--good-soft); color: var(--good); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+.chip.primary { background: var(--primary-soft); color: var(--primary); }
+
+.note { padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; }
+.note.warn { background: var(--warn-soft); border-color: transparent; color: var(--text); }
+.note.bad { background: var(--bad-soft); border-color: transparent; }
+.note.good { background: var(--good-soft); border-color: transparent; }
+
+.progress { height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.progress > i { display: block; height: 100%; background: var(--primary); width: 0; }
+
+.toasts { position: fixed; right: 18px; bottom: 18px; display: grid; gap: 8px; z-index: 200; max-width: min(420px, calc(100vw - 36px)); pointer-events: none; }
+.toast { background: #1a1527; color: #fff; padding: 10px 14px; border-radius: 10px; box-shadow: var(--shadow); font-size: 13px; }
+.toast.bad { background: #8f1d1d; }
+.toast.good { background: #17603c; }
+
+.overlay { position: fixed; inset: 0; background: rgba(15, 8, 35, .55); display: flex; align-items: flex-start; justify-content: center; padding: 4vh 16px; z-index: 100; overflow: auto; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); width: min(560px, 100%); max-width: 100%; }
+.modal.wide { width: min(1080px, 100%); }
+.modal > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.modal > .body { padding: 18px; }
+.modal > footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+
+table.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.table th { font-size: 12px; color: var(--muted); font-weight: 600; }
+.num { text-align: right !important; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: no-preference) { .btn, .chip { transition: background .12s, border-color .12s; } }

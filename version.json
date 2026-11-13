@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "date": "2026-11-13",
+  "zip": "Vintory-1.0.0.zip",
+  "sha256": "62e717670ac23ab36af73bcc28381e15908b4137c3bf6e2331b933e62158df6c",
+  "notes": [
+    "Prima versione: salvataggio degli annunci con tutte le foto, dal popup o dalla pagina",
+    "Importazione da un armadio con anteprima, ripresa e cronologia",
+    "Archivio con ricerca, filtri, collezioni, preferiti, versioni e cestino",
+    "Backup e ripristino in ZIP, backup automatico, esportazione CSV ed Excel"
+  ]
+}
