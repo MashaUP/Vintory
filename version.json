@@ -1,12 +1,12 @@
 {
-  "version": "1.1.0",
+  "version": "1.1.1",
   "date": "2026-11-13",
-  "zip": "Vintory-1.1.0.zip",
-  "sha256": "b8943dd6a1145f860ae94a1cc81427d3229ba4b152fdc825ce58a2a086a0a085",
+  "zip": "Vintory-1.1.1.zip",
+  "sha256": "c179e4fbac8b6b83fc2b1c2a0c3f9c0d3b0586905605f1f702ed08c5d11fcced",
   "notes": [
-    "«Installa l'aggiornamento» compare da solo quando estrai una nuova versione sopra la cartella",
-    "Esportazione per Vinted_Relist di più annunci insieme, dalla selezione",
-    "Nuovo formato del ponte con Vinted_Relist (vintory-relist, schema 2), descritto in docs/RELIST_BRIDGE.md",
-    "Categorie, taglie e dati dei libri della 1.0.2"
+    "«Completa i dati mancanti» trova i nomi delle categorie anche quando Vinted disegna il percorso con JavaScript",
+    "Barra di avanzamento durante il completamento",
+    "L'avviso delle categorie mancanti si può nascondere con «Non ora»",
+    "Il report diagnostico dice cosa è stato trovato per le categorie"
   ]
 }

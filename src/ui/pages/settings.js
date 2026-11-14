@@ -61,7 +61,7 @@ export async function renderSettings(main) {
 }
 
 export async function renderHealth(main) {
-  const [counts, info, errors, update, account, probe] = await Promise.all([archive.counts(), archive.storageInfo(), getState("errors", []), getState("update", null), rpc("account.get").catch(() => ({})), getState("probe", null)]);
+  const [counts, info, errors, update, account, probe, fillDiag] = await Promise.all([archive.counts(), archive.storageInfo(), getState("errors", []), getState("update", null), rpc("account.get").catch(() => ({})), getState("probe", null), getState("fillDiag", null)]);
   const perms = await chrome.permissions.getAll();
   const reportBox = h("div", { id: "integrity" });
   const lines = () => [
@@ -72,6 +72,7 @@ export async function renderHealth(main) {
     `Permessi: ${perms.permissions.join(", ")}`, `Domini: ${perms.origins.length}`,
     `Token CSRF: ${probe?.csrf || "mai cercato"}`,
     `Ultime letture da Vinted: ${probe ? Object.entries(probe.calls).map(([k, v]) => `${k} ${v.status || "-"} ${v.kind}${v.retried ? " (2° tentativo)" : ""}`).join(" · ") : "nessuna"}`,
+    `Categorie: ${fillDiag ? `${fillDiag.found} trovate su ${fillDiag.tried} · testo ${fillDiag.text.found}/${fillDiag.text.tried} (HTTP ${fillDiag.text.status ?? "-"}, link ${fillDiag.text.links}, indirizzi ${fillDiag.text.mentions}) · pagina aperta ${fillDiag.live.found}/${fillDiag.live.tried} (link ${fillDiag.live.links}, indirizzi ${fillDiag.live.mentions})` : "mai cercate"} · senza nome: ${missingCategory().length}`,
     `Aggiornamenti: ${update ? (update.ok ? `ok, ultima ${update.latest}` : update.error) : "mai controllato"}`,
     `Errori recenti: ${errors.length}`, ...errors.slice(0, 20).map((e) => `- ${new Date(e.at).toISOString()} [${e.where}] ${e.message}`),
   ].join("\n");

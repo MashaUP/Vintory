@@ -109,18 +109,31 @@ class FakeVinted:
         ld = {"@context": "https://schema.org", "@type": "Product", "name": it["title"], "description": it["description"], "brand": {"@type": "Brand", "name": it["brand_dto"]["title"]},
               "image": [p["full_size_url"] for p in it["photos"]], "offers": {"@type": "Offer", "price": it["price"]["amount"], "priceCurrency": "EUR"}}
         crumbs = '<li><a href="/">Home</a></li>' + "".join(f'<li><a href="/catalog/{cid}-{name.lower().replace(" ", "-")}">{name}</a></li>' for cid, name in it["_crumbs"])
+        # Modi del percorso della categoria: «ssr» nel testo della pagina; «csr» disegnato da JavaScript dopo
+        # il caricamento (nel testo scaricato non c'è); «slug» nessun percorso, solo l'indirizzo negli script.
+        mode = it.get("_crumb_mode") or "ssr"
+        late = ""
+        if mode != "ssr":
+            if mode == "csr":
+                parts = json.dumps([[cid, name, name.lower().replace(" ", "-")] for cid, name in it["_crumbs"]])
+                late = ("<script>setTimeout(() => { const ul = document.querySelector('#crumbs'); for (const [c, n, s] of " + parts +
+                        ") { const a = document.createElement('a'); a.href = '/cata' + 'log/' + c + '-' + s; a.textContent = n; const li = document.createElement('li'); li.append(a); ul.append(li); } }, 700);</script>")
+            else:
+                cid, name = it["_crumbs"][-1]
+                late = '<script>self.__next_f.push([1,"{\\"catalog\\":{\\"url\\":\\"\\/catalog\\/' + f'{cid}-{name.lower().replace(" ", "-")}' + '\\"}}"])</script>'
+            crumbs = ""
         embedded = json.dumps({"item": {"id": it["id"], "user_id": it["user"]["id"]}})
         return f"""<!doctype html><html lang="it"><head><meta charset="utf-8"><title>{it['title']} | Vinted</title>
 <meta property="og:title" content="{it['title']}"><script type="application/ld+json">{json.dumps(ld)}</script></head>
 <body><header><a href="/member/{ME}">Il mio profilo</a><button data-testid="header-user-menu">menu</button>
 <nav><ul><li><a href="/catalog/4-donna">Donna</a></li><li><a href="/catalog/5-uomo">Uomo</a></li><li><a href="/catalog/2312-intrattenimento">Intrattenimento</a></li></ul></nav></header>
-<main><div class="u-flexbox"><ul class="u-flexbox">{crumbs}</ul></div><h1>{it['title']}</h1>
+<main><div class="u-flexbox"><ul class="u-flexbox" id="crumbs">{crumbs}</ul></div><h1>{it['title']}</h1>
 <div data-testid="item-attributes-brand"><span>Marca</span><span itemprop="brand">{it['brand_dto']['title']}</span></div>
 <div data-testid="item-attributes-size"><span>Taglia</span><span>{it['size_title']}</span></div>
 <div data-testid="item-attributes-status"><span>Condizioni</span><span>{it['status']}</span></div>
 <div data-testid="item-attributes-color"><span>Colore</span><span>{it['color1']}, {it['color2']}</span></div>
 <a href="/member/{it['user']['id']}-{it['user']['login']}">{it['user']['login']}</a></main>
-<script>window.__DATA__ = {embedded};</script>{CSRF_SCRIPT if self.token_in_pages else ""}</body></html>"""
+<script>window.__DATA__ = {embedded};</script>{late}{CSRF_SCRIPT if self.token_in_pages else ""}</body></html>"""
 
     def member_html(self, uid):
         cards = "".join(f'<div data-testid="grid-item"><a href="{it["path"]}"><img alt="{it["title"]}, prezzo" src="{it["photos"][0]["url"] if it["photos"] else ""}"></a><p>{it["price"]["amount"]} €</p></div>'

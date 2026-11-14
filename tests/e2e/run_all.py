@@ -681,7 +681,8 @@ async def t_real_shapes_102(env):
     giochi = [(2312, "Intrattenimento"), (3045, "Videogiochi")]
     fake.add(905090, ME, "masha_up", 10, catalog_id=2319, _crumbs=libri, size_title="", _book={"author": "Olivie Blake", "book_title": "The Atlas Six", "isbn": "9781529095258"})
     fake.add(905091, ME, "masha_up", 11, catalog_id=2319, _crumbs=libri, size_title="Taglia unica", _book={"author": "Clea Benedetti", "isbn": "9788834744412"})
-    fake.add(905092, ME, "masha_up", 12, catalog_id=3045, _crumbs=giochi, size_title="M", _book={"manufacturer": "Sony", "model": "PS2"})
+    fake.add(905092, ME, "masha_up", 12, catalog_id=3045, _crumbs=giochi, size_title="M", _book={"manufacturer": "Sony", "model": "PS2"}, _crumb_mode="csr")
+    fake.add(905093, ME, "masha_up", 13, catalog_id=3046, _crumbs=[(2312, "Intrattenimento"), (3046, "Giochi da tavolo")], _crumb_mode="slug")
     pages = lambda iid: len([r for r in fake.requests if r == ("GET", f"/items/{iid}")])
     fake.fail = {r"^/api/v2/items/\d+$": 403}      # come sul Vinted reale: la scheda non dà dati
     home = await env.vinted("/")                        # una scheda di Vinted aperta, come quando si usa Vintory
@@ -698,20 +699,37 @@ async def t_real_shapes_102(env):
     l = await env.listing(905091)
     check(l["category"] == "Intrattenimento › Libri" and l["size"] == "Taglia unica", f"categoria e taglia: {l['category']} / {l['size']}")
     check(pages(905091) == 0, "categoria già nota: nessuna pagina letta")
-    # 3. annuncio salvato come nella 1.0.1 (solo modulo di vendita e riga, niente nome della categoria né taglia)
-    it = fake.items[905092]
-    await env.A("archive.saveBundle({ bundle: arg, origin: 'https://www.vinted.it', accountId: '4242', source: 'import' }).then((r) => archive.patchMany([r.listing.id], (x) => { x.size = null; x.extra = {}; x.category = null; }))", {"upload": fake.upload_shape(it), "wardrobe": fake.row(it)})
-    await env.A("db.getMeta('labels', {}).then((m) => { delete m.catalog['3045']; return db.setMeta('labels', m); })")
+    # 3. annunci salvati come nella 1.0.1 (solo modulo di vendita e riga, niente nome della categoria né taglia).
+    #    Come sul Vinted vero: nel testo della pagina il percorso non c'è (905092 lo disegna JavaScript;
+    #    905093 ha solo l'indirizzo della categoria negli script).
+    for iid in (905092, 905093):
+        it = fake.items[iid]
+        await env.A("archive.saveBundle({ bundle: arg, origin: 'https://www.vinted.it', accountId: '4242', source: 'import' }).then((r) => archive.patchMany([r.listing.id], (x) => { x.size = null; x.extra = {}; x.category = null; }))", {"upload": fake.upload_shape(it), "wardrobe": fake.row(it)})
+    await env.A("db.getMeta('labels', {}).then((m) => { delete m.catalog['3045']; delete m.catalog['3046']; return db.setMeta('labels', m); })")
     l = await env.listing(905092)
     check(l["category"] is None and l["size"] is None, "simulato com'era nella 1.0.1")
     await env.go("archive")
     await env.reload()
     await env.ui.locator("#fill-note").wait_for(timeout=10000)
-    await env.ui.locator("#fill-run").click()
-    await env.toast("annunci completati", timeout=60000)
+    await env.ui.locator("#fill-hide").click()                         # «Non ora»
+    await env.ui.wait_for_function("() => !document.querySelector('#fill-note')", timeout=5000)
+    await env.go("health")
+    await env.ui.locator("#fill-health").click()
+    await env.ui.locator(".overlay .progress").wait_for(timeout=5000)  # barra di avanzamento
+    try:
+        await env.toast("annunci completati", timeout=90000)
+    except Exception:
+        print("    completamento non concluso:", await env.A("store.getState('fillDiag')"), await env.ui.evaluate("() => [...document.querySelectorAll('.toast')].map((e) => e.textContent)"))
+        raise
     l = await env.listing(905092)
-    check(l["category"] == "Intrattenimento › Videogiochi" and l["size"] == "M" and l["extra"].get("manufacturer") == "Sony", f"completato: {l['category']} / {l['size']} / {l['extra']}")
-    check(pages(905092) == 1, f"una pagina per la categoria mancante: {pages(905092)}")
+    check(l["category"] == "Intrattenimento › Videogiochi" and l["size"] == "M" and l["extra"].get("manufacturer") == "Sony", f"dalla pagina aperta: {l['category']} / {l['size']} / {l['extra']}")
+    l = await env.listing(905093)
+    check(l["category"] == "Giochi da tavolo", f"dall'indirizzo della categoria: {l['category']}")
+    check(pages(905092) >= 2, f"testo e poi pagina aperta: {pages(905092)}")
+    check(not [p for p in env.ctx.pages if f"/items/905092" in p.url or "/items/905093" in p.url], "la scheda in secondo piano è stata chiusa")
+    report = await env.ui.evaluate("() => { let t = ''; const orig = navigator.clipboard.writeText; navigator.clipboard.writeText = (x) => { t = x; return Promise.resolve(); }; document.querySelector('#copy-report').click(); navigator.clipboard.writeText = orig; return t; }")
+    check("Categorie: 2 trovate su 2" in report and "pagina aperta" in report, f"report: {[r for r in report.splitlines() if r.startswith('Categorie')]}")
+    await env.go("archive")
     await env.reload()
     check(await env.ui.locator("#fill-note").count() == 0, "avviso sparito")
     # 4. scheda: dati del libro e pulsante per Vinted_Relist

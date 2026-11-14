@@ -1,5 +1,5 @@
 /** Costanti condivise. La versione qui deve coincidere con manifest, package e version.json (scripts/check.mjs). */
-export const VERSION = "1.1.0";
+export const VERSION = "1.1.1";
 export const REPO = "MashaUP/Vintory";
 export const APP = "Vintory";
 
@@ -55,6 +55,7 @@ export const DEFAULT_SETTINGS = {
   },
   updates: { auto: true, repo: REPO, lastNotified: null },
   links: { autoRefresh: true },
+  fillNoteHidden: null,          // quanti annunci senza categoria c'erano quando l'avviso è stato nascosto
 };
 
 export const CONDITION_BY_STATUS_ID = {

@@ -2,6 +2,21 @@
 
 Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/) e le versioni seguono [Semantic Versioning](https://semver.org/lang/it/).
 
+## [1.1.1] - 2026-11-13
+
+### Corretto
+- **«Completa i dati mancanti» non trovava nessuna categoria** sul Vinted vero (0 su 18). Nel testo della pagina scaricata il percorso della categoria non c'è: Vinted lo disegna con JavaScript dopo il caricamento. Ora, se nel testo non c'è, Vintory apre l'annuncio in **una sola scheda in secondo piano**, riusata per tutte le categorie e chiusa alla fine, e aspetta che la pagina disegni il percorso (fino a 12 secondi). Se la pagina aperta funziona e il testo no, il testo si salta per le categorie successive.
+- Riconosciuti anche i link alla categoria nella forma `?catalog[]=<numero>`. Come ultima risorsa il nome si ricava dall'indirizzo della categoria scritto nella pagina (`/catalog/2319-libri` → «Libri»), solo per l'ultima voce del percorso.
+- Le schede di Vinted aperte da Vintory nascono vuote e poi caricano l'indirizzo: il caricamento parte quando la scheda esiste già.
+- Il completamento usa una sua scheda in secondo piano invece di quelle di Vinted aperte da te: una tua scheda bloccata poteva farlo restare in attesa per sempre.
+- Ogni richiesta a una scheda di Vinted ha un limite di tempo (45–90 secondi, come in Vinted_Relist): una scheda che non risponde non ferma più Vintory.
+
+### Migliorato
+- **Barra di avanzamento** durante il completamento, con la categoria in corso.
+- L'avviso nell'archivio si può nascondere con **«Non ora»**: ricompare solo se gli annunci senza categoria aumentano.
+- Se nessuna categoria viene trovata, il messaggio lo dice e chiede il report diagnostico.
+- Il report diagnostico ha la riga **«Categorie»**: quante trovate, dal testo o dalla pagina aperta, e quanti link e indirizzi di categoria c'erano (solo conteggi).
+
 ## [1.1.0] - 2026-11-13
 
 ### Nuovo

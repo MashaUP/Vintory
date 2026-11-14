@@ -151,8 +151,37 @@
    * Si cerca il contenitore delle «briciole»; se non è riconoscibile, la lista (ol/ul/nav) che
    * contiene il link alla categoria dell'annuncio. Il menu del sito non conta: non finisce con quella categoria.
    */
+  /** Numero di categoria da un link: /catalog/2319-libri, oppure ?catalog[]=2319 / catalog_ids=2319. */
+  function catalogIdOf(href) {
+    const h = String(href || "");
+    return h.match(/\/catalog\/(\d+)/)?.[1] || h.match(/[?&](?:catalog|catalog_ids?)(?:\[\]|%5B%5D)?=(\d+)/i)?.[1] || null;
+  }
+
+  /**
+   * Ultima risorsa: il nome dall'indirizzo della categoria scritto da qualche parte nella pagina
+   * (anche negli script): «/catalog/2319-libri-e-riviste» → «Libri e riviste». Solo l'ultima voce del percorso.
+   */
+  function slugName(textBlob, wantId) {
+    if (!wantId || !textBlob) return null;
+    const m = String(textBlob).replace(/\\\//g, "/").match(new RegExp(`/catalog/${wantId}-([a-z0-9][a-z0-9-]{1,60})`, "i"));
+    if (!m) return null;
+    let slug = m[1];
+    try { slug = decodeURIComponent(slug); } catch { /* resta com'è */ }
+    const name = slug.replace(/-+/g, " ").trim();
+    return name ? { id: String(wantId), names: [name.charAt(0).toUpperCase() + name.slice(1)], approx: true } : null;
+  }
+
+  /** Cosa c'è nella pagina che riguarda le categorie (per il report: solo conteggi, niente contenuti). */
+  function catalogClues(doc, textBlob) {
+    return {
+      links: doc.querySelectorAll('a[href*="catalog"]').length,
+      mentions: (String(textBlob || "").match(/\/catalog\/\d+/g) || []).length,
+      ldjson: doc.querySelectorAll('script[type="application/ld+json"]').length,
+    };
+  }
+
   function catalogTrail(doc, wantId = null) {
-    const links = [...doc.querySelectorAll('a[href*="/catalog/"]')].map((a) => ({ a, id: (a.getAttribute("href") || "").match(/\/catalog\/(\d+)/)?.[1] || null, name: text(a) })).filter((x) => x.id && x.name && x.name.length <= 60);
+    const links = [...doc.querySelectorAll('a[href*="catalog"]')].map((a) => ({ a, id: catalogIdOf(a.getAttribute("href")), name: text(a) })).filter((x) => x.id && x.name && x.name.length <= 60);
     const CRUMBS = '[data-testid*="breadcrumb" i], nav[aria-label*="breadcrumb" i], [itemtype*="BreadcrumbList"], [class*="breadcrumb" i]';
     let box = links.find((x) => x.a.closest(CRUMBS))?.a.closest(CRUMBS) || null;
     if (!box && wantId) box = [...links].reverse().find((x) => x.id === String(wantId))?.a.closest("ol, ul, nav") || null;
@@ -173,7 +202,7 @@
       for (const s of doc.querySelectorAll('script[type="application/ld+json"]')) {
         try {
           const bl = [].concat(JSON.parse(s.textContent)).find((x) => x && x["@type"] === "BreadcrumbList");
-          const items = (bl?.itemListElement || []).map((e) => ({ id: String(e?.item?.["@id"] || e?.item || "").match(/\/catalog\/(\d+)/)?.[1] || null, name: String(e?.name || e?.item?.name || "").trim() })).filter((x) => x.id && x.name);
+          const items = (bl?.itemListElement || []).map((e) => ({ id: catalogIdOf(e?.item?.["@id"] || e?.item || ""), name: String(e?.name || e?.item?.name || "").trim() })).filter((x) => x.id && x.name);
           if (items.length) { chain = items; break; }
         } catch { /* JSON-LD non valido */ }
       }
@@ -240,7 +269,7 @@
     if (!r.ok) return r;
     if (!new RegExp(`^/items/${id}(?:$|[-/])`).test(r.finalPath)) return { ok: false, kind: "notFound", status: 404 };
     const doc = new DOMParser().parseFromString(r.html || "", "text/html");
-    return { ok: true, page: readPage(id, doc, r.finalPath, catalogId) };
+    return { ok: true, page: readPage(id, doc, r.finalPath, catalogId), doc, html: r.html || "", status: r.status };
   }
   const usable = (p) => Boolean(p && (p.title || Object.keys(p.attrs).length || p.breadcrumbs.length || p.catalog));
 
@@ -291,11 +320,32 @@
   };
 
   /** Solo la pagina dell'annuncio, scaricata come testo: serve a imparare il nome di una categoria. */
-  VY.page = async ({ id, catalogId = null }) => {
+  /**
+   * Il percorso della categoria di un annuncio.
+   *  - testo: la pagina scaricata come testo (veloce, ma Vinted può disegnare le «briciole» solo dopo, con JavaScript);
+   *  - live: questa scheda è aperta sull'annuncio: si aspetta che la pagina disegni il percorso (fino a 12 secondi).
+   * Ultima risorsa: il nome dall'indirizzo della categoria («/catalog/2319-libri»).
+   */
+  VY.page = async ({ id, catalogId = null, live = false }) => {
     if (!/^\d+$/.test(String(id))) return { ok: false, kind: "input", message: "Id dell'annuncio non valido", version: VY.version };
+    if (live) {
+      if (!onItemPage(id)) return { ok: false, kind: "input", message: "La scheda non è sull'annuncio", version: VY.version };
+      let catalog = null;
+      const end = Date.now() + 12_000;
+      while (!catalog && Date.now() < end) {
+        catalog = catalogTrail(document, catalogId);
+        if (!catalog) await new Promise((r) => setTimeout(r, 400));
+      }
+      const blob = [...document.querySelectorAll("script:not([src])")].map((x) => x.textContent || "").concat([...document.querySelectorAll("a[href]")].map((a) => a.getAttribute("href"))).join("\n");
+      let how = catalog ? "percorso" : null;
+      if (!catalog) { catalog = slugName(blob, catalogId); how = catalog ? "indirizzo" : null; }
+      return { ok: true, page: { id: String(id), catalog }, info: { mode: "pagina aperta", how, ...catalogClues(document, blob) }, version: VY.version };
+    }
     const p = await fetchPage(id, catalogId);
-    if (!p.ok) return { ok: false, kind: p.kind, status: p.status, message: MESSAGES[p.kind] || p.message || "Pagina dell'annuncio non leggibile", version: VY.version };
-    return { ok: true, page: p.page, version: VY.version };
+    if (!p.ok) return { ok: false, kind: p.kind, status: p.status, message: MESSAGES[p.kind] || p.message || "Pagina dell'annuncio non leggibile", info: { mode: "testo", status: p.status || 0 }, version: VY.version };
+    let how = p.page.catalog ? "percorso" : null;
+    if (!p.page.catalog) { p.page.catalog = slugName(p.html, catalogId); how = p.page.catalog ? "indirizzo" : null; }
+    return { ok: true, page: p.page, info: { mode: "testo", how, status: p.status, ...catalogClues(p.doc, p.html) }, version: VY.version };
   };
 
   /** L'annuncio è ancora online? online · sold · offline · unknown (F43). */

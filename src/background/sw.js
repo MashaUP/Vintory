@@ -79,19 +79,31 @@ async function vintedTab({ origin, tabId = null, url = null }) {
   const tabs = await chrome.tabs.query({ url: `${origin}/*` });
   const ready = tabs.find((t) => t.status === "complete") || tabs[0];
   if (ready) return { tab: ready, created: false };
-  const t = await chrome.tabs.create({ url: url && url.startsWith(`${origin}/`) ? url : `${origin}/`, active: false });
+  const t = await chrome.tabs.create({ url: "about:blank", active: false });
+  await chrome.tabs.update(t.id, { url: url && url.startsWith(`${origin}/`) ? url : `${origin}/` });
+  await new Promise((r) => setTimeout(r, 300));
   await waitComplete(t.id);
   return { tab: t, created: true };
 }
 
 /** Messaggio alla scheda; se lo script non c'è (scheda aperta prima dell'installazione) lo inietta e riprova una volta. */
-async function askTab(tabId, msg) {
+/** Risposta della scheda entro il limite: una scheda bloccata non deve fermare Vintory per sempre. */
+function send(tabId, msg, timeoutMs) {
+  let timer;
+  return Promise.race([
+    chrome.tabs.sendMessage(tabId, msg),
+    new Promise((_, reject) => { timer = setTimeout(() => reject(Object.assign(new Error(`La scheda di Vinted non ha risposto in ${Math.round(timeoutMs / 1000)} secondi: ricaricala (F5) e riprova.`), { timeout: true })), timeoutMs); }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+async function askTab(tabId, msg, timeoutMs = 90_000) {
   let r;
   try {
-    r = await chrome.tabs.sendMessage(tabId, msg);
-  } catch {
+    r = await send(tabId, msg, timeoutMs);
+  } catch (e) {
+    if (e.timeout) throw e;
     await chrome.scripting.executeScript({ target: { tabId }, files: CONTENT_FILES });
-    r = await chrome.tabs.sendMessage(tabId, msg);
+    r = await send(tabId, msg, timeoutMs);
   }
   if (r && r.version && r.version !== VERSION) throw new Error("La scheda di Vinted usa una versione precedente di Vintory: ricaricala (F5) e riprova.");
   if (!r) throw new Error("La scheda di Vinted non ha risposto: ricaricala (F5) e riprova.");
@@ -233,34 +245,82 @@ async function checkOnline({ listingId }) {
 }
 
 /**
- * Completa gli annunci già archiviati (1.0.2): prima con i dati già salvati, poi leggendo
- * una pagina per ogni categoria di cui manca il nome. Si ferma davanti a CAPTCHA o 429.
+ * Completa gli annunci già archiviati: prima con i dati già salvati, poi una categoria alla volta.
+ * Per ogni categoria senza nome: la pagina dell'annuncio come testo; se lì il percorso non c'è
+ * (Vinted lo disegna con JavaScript), la pagina vera in una scheda in secondo piano, riusata per tutte.
+ * Avanzamento con «vy:fill-progress». Si ferma davanti a CAPTCHA, 429 o sessione scaduta.
  */
+let filling = false;
 async function fillMissing() {
-  const filledLocal = await archive.refill();
-  const todo = new Map();
-  for (const l of await archive.listAll()) {
-    const cid = l.ids?.catalogId;
-    if (l.deletedAt || l.category || !cid || todo.has(cid) || l.online === "offline" || (await archive.labelFor("catalog", cid))) continue;
-    todo.set(cid, l);
+  if (filling) throw new Error("Il completamento è già in corso.");
+  filling = true;
+  let liveTab = null;
+  try {
+    const filledLocal = await archive.refill();
+    const todo = new Map();
+    for (const l of await archive.listAll()) {
+      const cid = l.ids?.catalogId;
+      if (l.deletedAt || l.category || !cid || todo.has(cid) || l.online === "offline" || (await archive.labelFor("catalog", cid))) continue;
+      todo.set(cid, l);
+    }
+    const report = { filledLocal, categories: todo.size, learned: 0, approx: 0, failed: 0, stopped: null, filled: 0, byText: 0, byLive: 0 };
+    const diag = { at: Date.now(), tried: todo.size, found: 0, text: { tried: 0, found: 0, links: 0, mentions: 0, status: null }, live: { tried: 0, found: 0, links: 0, mentions: 0 } };
+    const progress = (done, msg) => broadcast("vy:fill-progress", { done, total: todo.size, msg });
+    if (todo.size) {
+      const s = await getSettings();
+      const first = [...todo.values()][0];
+      let textFails = 0;
+      let liveWorks = false;
+      // Una scheda tutta sua, in secondo piano: non dipende dalle schede di Vinted aperte dall'utente.
+      liveTab = await chrome.tabs.create({ url: "about:blank", active: false });
+      await chrome.tabs.update(liveTab.id, { url: `${first.origin}/` });
+      await new Promise((r) => setTimeout(r, 300));
+      await waitComplete(liveTab.id);
+      await (async (tab) => {
+        let i = 0;
+        for (const [cid, l] of todo) {
+          progress(i, l.title);
+          if (i++) await new Promise((r) => setTimeout(r, s.importDelay.min + Math.random() * (s.importDelay.max - s.importDelay.min)));
+          let found = null;
+          // 1. testo (saltato se finora non ha mai funzionato e la pagina vera sì)
+          if (!(textFails >= 2 && liveWorks)) {
+            const r = await askTab(tab.id, { type: "vy:page", id: l.vintedId, catalogId: cid }, 45_000).catch((e) => ({ ok: false, kind: "error", message: e.message }));
+            diag.text.tried++;
+            if (!r.ok) diag.text.error = String(r.message || r.kind || "").slice(0, 160);
+            if (r.info) { diag.text.links += r.info.links || 0; diag.text.mentions += r.info.mentions || 0; diag.text.status = r.info.status ?? diag.text.status; }
+            if (!r.ok && ["captcha", "rate", "auth"].includes(r.kind)) { report.stopped = r.message; break; }
+            if (r.ok && r.page?.catalog?.names?.length && String(r.page.catalog.id) === String(cid)) { found = r.page.catalog; diag.text.found++; report.byText++; } else textFails++;
+          }
+          // 2. pagina vera, in una scheda in secondo piano
+          if (!found) {
+            const url = `${l.origin}/items/${l.vintedId}`;
+            await chrome.tabs.update(liveTab.id, { url });
+            await new Promise((r) => setTimeout(r, 300));
+            await waitComplete(liveTab.id);
+            const r = await askTab(liveTab.id, { type: "vy:page", id: l.vintedId, catalogId: cid, live: true }, 45_000).catch((e) => ({ ok: false, kind: "error", message: e.message }));
+            diag.live.tried++;
+            if (!r.ok) diag.live.error = String(r.message || r.kind || "").slice(0, 160);
+            if (r.info) { diag.live.links += r.info.links || 0; diag.live.mentions += r.info.mentions || 0; }
+            if (r.ok && r.page?.catalog?.names?.length && String(r.page.catalog.id) === String(cid)) { found = r.page.catalog; diag.live.found++; report.byLive++; liveWorks = true; }
+          }
+          if (found) {
+            await archive.learnLabel("catalog", cid, found.names.join(" › "));
+            report.learned++;
+            if (found.approx) report.approx++;
+          } else report.failed++;
+        }
+        progress(todo.size, null);
+      })(liveTab);
+    }
+    diag.found = report.learned;
+    await setState("fillDiag", diag);
+    report.filled = (await archive.refill()) + filledLocal;
+    broadcast("vy:changed", { reason: "fill" });
+    return report;
+  } finally {
+    filling = false;
+    if (liveTab) chrome.tabs.remove(liveTab.id).catch(() => {});
   }
-  const report = { filledLocal, categories: todo.size, learned: 0, failed: 0, stopped: null, filled: 0 };
-  if (todo.size) {
-    const s = await getSettings();
-    const first = [...todo.values()][0];
-    await withTab({ origin: first.origin, url: `${first.origin}/` }, async (tab) => {
-      let i = 0;
-      for (const [cid, l] of todo) {
-        if (i++) await new Promise((r) => setTimeout(r, s.importDelay.min + Math.random() * (s.importDelay.max - s.importDelay.min)));
-        const r = await askTab(tab.id, { type: "vy:page", id: l.vintedId, catalogId: cid });
-        if (r.ok && r.page?.catalog?.names?.length && String(r.page.catalog.id) === String(cid)) { await archive.learnLabel("catalog", cid, r.page.catalog.names.join(" › ")); report.learned++; } else report.failed++;
-        if (!r.ok && ["captcha", "rate", "auth"].includes(r.kind)) { report.stopped = r.message; break; }
-      }
-    });
-  }
-  report.filled = (await archive.refill()) + filledLocal;
-  broadcast("vy:changed", { reason: "fill" });
-  return report;
 }
 
 async function listVintedTabs() {

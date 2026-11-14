@@ -4,7 +4,7 @@
 
 **Archivio personale dei tuoi annunci Vinted.** Vintory è un'estensione per Chrome, Edge e Brave che conserva una copia completa di ogni annuncio (testi, prezzo, marca, taglia, condizioni e tutte le foto) dentro il browser. La copia resta consultabile anche quando l'annuncio viene eliminato da Vinted.
 
-**Versione 1.1.0** · solo lettura: Vintory non pubblica, non modifica e non elimina nulla su Vinted.
+**Versione 1.1.1** · solo lettura: Vintory non pubblica, non modifica e non elimina nulla su Vinted.
 
 ![L'archivio](docs/screenshots/archivio.png)
 
@@ -12,7 +12,7 @@
 
 ## Installazione
 
-1. Scarica **`Vintory-1.1.0.zip`** da questa pagina ed estrailo: ottieni la cartella `Vintory`.
+1. Scarica **`Vintory-1.1.1.zip`** da questa pagina ed estrailo: ottieni la cartella `Vintory`.
 2. Apri `brave://extensions` (oppure `chrome://extensions` o `edge://extensions`) e attiva la **Modalità sviluppatore**.
 3. Premi **Carica estensione non pacchettizzata** e scegli la cartella `Vintory`.
 
@@ -46,7 +46,7 @@ Per aggiornare: **Cerca aggiornamento** (nel popup o nella dashboard) scarica il
 
 - **Provata poco su Vinted reale.** Le prove automatiche usano un Vinted simulato, aggiornato con quanto visto sul sito vero nella 1.0.0. La lettura usa le stesse richieste interne di Vinted_Relist: per i tuoi annunci prima il modulo di vendita (`/item_upload/items/<id>`), poi la scheda (`/items/<id>`), infine la pagina dell'annuncio. Un 403 rinnova il token CSRF e riprova una sola volta.
 - **Non è un'API ufficiale.** Se Vinted cambia formato, Vintory lo dice invece di salvare dati incompleti. Davanti a CAPTCHA, errori 403 o 429 si ferma: non li aggira mai.
-- **Nomi delle categorie:** Vinted fornisce solo il numero della categoria. Vintory ne legge il nome dalla pagina di un annuncio, una volta per categoria, e lo applica a tutti gli altri. Per gli annunci salvati con la 1.0.0 o la 1.0.1 c'è **«Completa i dati mancanti»** (nell'archivio e in Salute).
+- **Nomi delle categorie:** Vinted fornisce solo il numero della categoria. Vintory ne legge il nome dalla pagina di un annuncio, una volta per categoria, e lo applica a tutti gli altri: prima dal testo della pagina, poi, se serve, aprendo l'annuncio in una scheda in secondo piano. Per gli annunci salvati con la 1.0.0 o la 1.0.1 c'è **«Completa i dati mancanti»** (nell'archivio e in Salute).
 - **Limite dei backup:** uno ZIP può contenere fino a 4 GB e 65 535 file. Oltre, esporta per collezioni.
 - **Backup in una cartella a scelta:** su Brave richiede di attivare «File System Access API» in `brave://flags`; altrimenti si usa la cartella Download.
 - Le condizioni d'uso di Vinted limitano gli strumenti esterni: Vintory è pensato per l'uso personale sui propri annunci, con ritmi lenti e senza automazioni di pubblicazione.
@@ -63,7 +63,7 @@ JavaScript puro a moduli ES, nessuna dipendenza a runtime, nessuna build.
 npm ci                 # solo fake-indexeddb, per i test
 npm test               # controlli + 47 test unitari
 npm run test:e2e       # 24 scenari in Chrome contro il Vinted simulato (Python + Playwright)
-npm run package        # dist/Vintory-1.1.0.zip e dist/Vintory_GitHub.zip
+npm run package        # dist/Vintory-1.1.1.zip e dist/Vintory_GitHub.zip
 ```
 
 Documentazione: [architettura](docs/ARCHITECTURE.md) · [ponte con Vinted_Relist](docs/RELIST_BRIDGE.md) · [piano di prova](docs/TEST_PLAN.md) · [rilascio](docs/RELEASE.md) · [novità](CHANGELOG.md).
