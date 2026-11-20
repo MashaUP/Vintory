@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vintory",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Archivio personale dei tuoi annunci Vinted: copia completa con foto, ricerca, backup e ripristino. Solo lettura: non pubblica e non modifica nulla su Vinted.",
   "minimum_chrome_version": "116",
   "icons": {

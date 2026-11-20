@@ -1,9 +1,10 @@
 {
-  "version": "1.2.0",
+  "version": "1.2.1",
   "date": "2026-11-20",
-  "zip": "Vintory-1.2.0.zip",
-  "sha256": "627cd5837e2488d61a0040025207e24ca04518bf048ef1f5b8c8c613c0e7e233",
+  "zip": "Vintory-1.2.1.zip",
+  "sha256": "164caace451d2082ed40f51428241bc6c38084beb9fdd88be453cdab49c107e0",
   "notes": [
+    "Il download dell'aggiornamento ora si chiama Vintory-x.y.z.zip (prima download.zip)",
     "«Controlla il mio armadio»: nuovi da salvare, venduti, eliminati e modificati, in un clic",
     "Backup cifrati su Google Drive, anche automatici",
     "Ripristino da Google Drive su un altro computer",

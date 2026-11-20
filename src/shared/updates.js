@@ -68,14 +68,16 @@ export async function shouldNotify(status) {
 export async function downloadUpdate() {
   const st = await getState("update", null);
   if (!st?.available || !st.zip) throw new Error("Nessuno zip indicato in version.json: scaricalo dalla pagina GitHub del progetto.");
-  const res = await fetch(`https://github.com/${st.repo}/raw/HEAD/${encodeURIComponent(st.zip)}`, { credentials: "omit", cache: "no-store" });
+  const url = `https://github.com/${st.repo}/raw/HEAD/${encodeURIComponent(st.zip)}`;
+  // 1. Verifica: lo zip si scarica in memoria e se ne controlla l'impronta prima di salvare qualunque cosa.
+  const res = await fetch(url, { credentials: "omit", cache: "no-store" });
   if (!res.ok) throw new Error(`Download non riuscito (HTTP ${res.status}).`);
   const bytes = new Uint8Array(await res.arrayBuffer());
   const hash = await sha256Hex(bytes);
   if (st.sha256 && st.sha256 !== hash) throw new Error("Lo zip scaricato non corrisponde all'impronta dichiarata: non viene salvato. Riprova o scaricalo da GitHub.");
-  let bin = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  const downloadId = await chrome.downloads.download({ url: `data:application/zip;base64,${btoa(bin)}`, filename: `Vintory/${st.zip}`, conflictAction: "uniquify", saveAs: false });
+  // 2. Salvataggio dall'indirizzo vero di GitHub, come Vinted_Relist: il file si chiama «Vintory-x.y.z.zip» anche se
+  //    il browser ignora il nome indicato (succede con un indirizzo «data:» quando un'altra estensione gestisce i download).
+  const downloadId = await chrome.downloads.download({ url, filename: `Vintory/${st.zip}`, conflictAction: "uniquify", saveAs: false });
   return { downloadId, name: st.zip, verified: Boolean(st.sha256), hash };
 }
 

@@ -523,6 +523,10 @@ async def t_updates_and_links(env):
         await env.ui.locator('.modal [data-act="download"]').click()
         await env.ui.wait_for_function("() => document.querySelector('.modal')?.textContent.includes('Scaricato Vintory-9.0.0.zip')", timeout=15000)
         check("impronta verificata" in await env.ui.locator(".modal").inner_text(), "impronta verificata")
+        dl = await env.ui.evaluate("() => chrome.downloads.search({ orderBy: ['-startTime'], limit: 1 }).then((d) => d[0] ? { url: d[0].url, filename: d[0].filename } : null)")
+        check(dl and dl["url"].endswith("/MashaUP/Vintory/raw/HEAD/Vintory-9.0.0.zip"), f"salvato dall'indirizzo di GitHub, non da un «data:»: {dl}")
+        # Playwright intercetta i download e li salva con un nome casuale nella sua cartella: il nome si controlla solo fuori da lì.
+        check("playwright-artifacts" in dl["filename"] or not dl["filename"] or dl["filename"].replace("\\", "/").endswith("Vintory-9.0.0.zip"), f"nome del file: {dl}")
         check(await env.ui.get_by_role("button", name="Installa l'aggiornamento").is_visible(), "pulsante «Installa l'aggiornamento»")
         note = ", download con impronta verificata"
     except Exception as e:

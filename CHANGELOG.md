@@ -2,6 +2,11 @@
 
 Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/) e le versioni seguono [Semantic Versioning](https://semver.org/lang/it/).
 
+## [1.2.1] - 2026-11-20
+
+### Corretto
+- «Scarica e installa l'aggiornamento» salvava il file come `download.zip`. Ora lo zip, dopo il controllo dell'impronta, si scarica dall'indirizzo di GitHub come fa Vinted_Relist e si chiama `Vintory-x.y.z.zip` (in Download/Vintory).
+
 ## [1.2.0] - 2026-11-20
 
 ### Nuovo

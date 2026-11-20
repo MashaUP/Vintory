@@ -4,7 +4,7 @@
 
 **Archivio personale dei tuoi annunci Vinted.** Vintory è un'estensione per Chrome, Edge e Brave che conserva una copia completa di ogni annuncio (testi, prezzo, marca, taglia, condizioni e tutte le foto) dentro il browser. La copia resta consultabile anche quando l'annuncio viene eliminato da Vinted.
 
-**Versione 1.2.0** · solo lettura: Vintory non pubblica, non modifica e non elimina nulla su Vinted.
+**Versione 1.2.1** · solo lettura: Vintory non pubblica, non modifica e non elimina nulla su Vinted.
 
 ![L'archivio](docs/screenshots/archivio.png)
 
@@ -12,7 +12,7 @@
 
 ## Installazione
 
-1. Scarica **`Vintory-1.2.0.zip`** da questa pagina ed estrailo: ottieni la cartella `Vintory`.
+1. Scarica **`Vintory-1.2.1.zip`** da questa pagina ed estrailo: ottieni la cartella `Vintory`.
 2. Apri `brave://extensions` (oppure `chrome://extensions` o `edge://extensions`) e attiva la **Modalità sviluppatore**.
 3. Premi **Carica estensione non pacchettizzata** e scegli la cartella `Vintory`.
 
@@ -65,7 +65,7 @@ JavaScript puro a moduli ES, nessuna dipendenza a runtime, nessuna build.
 npm ci                 # solo fake-indexeddb, per i test
 npm test               # controlli + 50 test unitari
 npm run test:e2e       # 27 scenari in Chrome contro il Vinted simulato (Python + Playwright)
-npm run package        # dist/Vintory-1.2.0.zip e dist/Vintory_GitHub.zip
+npm run package        # dist/Vintory-1.2.1.zip e dist/Vintory_GitHub.zip
 ```
 
 Documentazione: [architettura](docs/ARCHITECTURE.md) · [ponte con Vinted_Relist](docs/RELIST_BRIDGE.md) · [piano di prova](docs/TEST_PLAN.md) · [rilascio](docs/RELEASE.md) · [novità](CHANGELOG.md).

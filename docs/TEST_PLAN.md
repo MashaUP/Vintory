@@ -9,7 +9,7 @@
 
 Scenari end-to-end: salvataggio dalla pagina · nessun duplicato · annuncio non mio · CAPTCHA e foto non scaricabili · importazione dall'armadio · importazione fermata da Vinted e ripresa · importazione interrotta dalla chiusura · ricerca, filtri, ordinamento, viste · selezione, preferiti, collezioni, cestino · scheda, modifica, note, versioni · aggiornamento da Vinted · annuncio non più online · modelli, Prepara, Vinted_Relist · CSV ed Excel · integrità delle foto · backup e ripristino su una nuova installazione · aggiornamenti e collegamenti · simili, statistiche, impostazioni, tema · cestino scaduto, backup automatico, spazio · cartella sovrascritta e «Installa l'aggiornamento» · Vinted reale: token CSRF e 403 · dati reali e completamento · controllo dell'armadio · backup su Google Drive e ripristino su un'altra installazione · domanda dopo la pubblicazione · persistenza dopo il riavvio del browser · sola lettura e assenza di errori.
 
-Risultato alla 1.2.0: 50/50 e 27/27 (tre giri di fila).
+Risultato alla 1.2.1: 50/50 e 27/27 (tre giri di fila).
 
 ## Non coperto dalle prove automatiche
 
