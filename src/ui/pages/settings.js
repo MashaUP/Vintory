@@ -57,7 +57,7 @@ export async function renderSettings(main) {
         await setSettings({ updates: { repo: repo.value.trim() } }); await setState("update", null); toast(t("Repository salvato."), "good");
       } }, t("Salva")), h("span", { class: "small muted" }, t("Da cambiare solo se il repository cambia nome."))))),
     h("section", { class: "card stack" }, h("h2", null, t("Sostieni e partecipa")),
-      h("div", { class: "row" }, ["kofi", "discord", "github", "documentation", "changelog", "bugReport"].map((k) => { const u = safeUrl(links[k]?.url); return u ? h("a", { class: `btn${k === "kofi" ? " primary" : ""}`, href: u, target: "_blank", rel: "noopener", dataset: { link: k } }, links[k].label) : null; })),
+      h("div", { class: "row" }, ["kofi", "discord", "github", "documentation", "changelog", "bugs", "ideas"].map((k) => { const u = safeUrl(links[k]?.url); return u ? h("a", { class: `btn${k === "kofi" ? " primary" : ""}`, href: u, target: "_blank", rel: "noopener", dataset: { link: k } }, links[k].label) : null; })),
       h("div", { class: "small muted" }, t("I collegamenti si aggiornano da soli dal repository: se l'invito Discord cambia, non serve una nuova versione."))),
     h("section", { class: "card stack" }, h("h2", null, t("Salute e diagnostica")),
       h("p", { class: "muted" }, t("Controllo delle foto, spazio, registro degli errori.")),

@@ -1,0 +1,59 @@
+name: Segnala un problema
+description: Qualcosa in Vintory non funziona come dovrebbe.
+title: "[Problema] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Grazie! Prima di inviare: in **Impostazioni → Registro degli errori** premi «Copia il report diagnostico» e incollalo qui sotto.
+        Il report non contiene token, password, titoli o id dei tuoi annunci. Non incollare screenshot con dati che non vuoi rendere pubblici.
+  - type: input
+    id: version
+    attributes:
+      label: Versione di Vintory
+      description: La trovi in alto nella barra laterale e nel popup.
+      placeholder: "1.2.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options:
+        - Chrome
+        - Brave
+        - Edge
+        - Altro
+    validations:
+      required: true
+  - type: input
+    id: browser-version
+    attributes:
+      label: Versione del browser
+      description: Da chrome://version (o brave://version, edge://version).
+      placeholder: "131.0.6778.86"
+  - type: textarea
+    id: what
+    attributes:
+      label: Cosa è successo
+      description: Cosa hai fatto, cosa ti aspettavi e cosa è successo invece.
+      placeholder: |
+        1. Ho aperto…
+        2. Ho premuto…
+        3. Mi aspettavo… invece…
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Report diagnostico
+      description: Impostazioni → Registro degli errori → «Copia il report diagnostico».
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Altro
+      description: Messaggi di errore, screenshot (senza dati personali), da quando succede.

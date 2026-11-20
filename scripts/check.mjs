@@ -34,6 +34,11 @@ if (fs.existsSync(rootZip) && versionJson.sha256) {
   if (hash !== versionJson.sha256) errors.push("version.json: sha256 non corrisponde allo zip nella radice (rilancia npm run package)");
 }
 for (const k of ["kofi", "discord", "github"]) if (!/^https:\/\//.test(links.links?.[k]?.url || "")) errors.push(`links.json: manca il link ${k}`);
+for (const k of Object.keys(links.links || {})) if (!/^[a-z]+$/.test(k)) errors.push(`links.json: la chiave «${k}» deve avere solo lettere minuscole (per esempio bugs, ideas)`);
+for (const [k, file] of [["bugs", "bug.yml"], ["ideas", "idea.yml"]]) {
+  if (!String(links.links?.[k]?.url || "").endsWith(`/issues/new?template=${file}`)) errors.push(`links.json: ${k} deve aprire il modello ${file}`);
+  if (!fs.existsSync(path.join(ROOT, ".github/ISSUE_TEMPLATE", file))) errors.push(`Manca .github/ISSUE_TEMPLATE/${file}`);
+}
 
 const domains = [...constants.matchAll(/"(vinted\.[a-z.]+)"/g)].map((m) => `https://www.${m[1]}/*`).sort();
 const csMatches = [...(manifest.content_scripts?.[0]?.matches || [])].sort();

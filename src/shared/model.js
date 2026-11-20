@@ -320,7 +320,7 @@ export function toCsv(rows) {
     if (/^[=+\-@]/.test(s) && typeof v !== "number") s = `'${s}`;        // niente formule da testo archiviato
     return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  return `﻿${rows.map((r) => r.map(cell).join(";")).join("\r\n")}\r\n`;
+  return `\uFEFF${rows.map((r) => r.map(cell).join(";")).join("\r\n")}\r\n`;
 }
 
 /**

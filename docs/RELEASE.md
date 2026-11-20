@@ -19,7 +19,7 @@
 
 ## Cambiare un collegamento senza rilasciare
 
-Modifica `links.json` su `main` (per esempio l'invito Discord) e aumenta `revision`. Le estensioni installate lo rileggono entro 12 ore, o subito con «Cerca aggiornamento».
+Modifica `links.json` su `main` (per esempio l'invito Discord) e aumenta `revision`. Le estensioni installate lo rileggono entro 12 ore, o subito con «Cerca aggiornamento». Chiavi: `github`, `discord`, `kofi`, `documentation`, `changelog`, `bugs`, `ideas` (solo lettere minuscole; `bugReport` è ancora letto come `bugs`). `bugs` e `ideas` aprono i modelli in `.github/ISSUE_TEMPLATE/`.
 
 ## Segreti
 

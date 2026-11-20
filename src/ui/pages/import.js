@@ -214,7 +214,7 @@ export async function renderImport(main) {
     }
 
     blocks.push(h("h2", { class: "section-title" }, t("Cronologia delle importazioni")));
-    blocks.push(jobs.length ? h("div", { class: "stack" }, jobs.map((j, i) => jobCard(j, runner.running && runner.jobId === j.id))) : h("div", { class: "empty" }, h("p", null, t("Ancora nessuna importazione."))));
+    blocks.push(jobs.length ? h("div", { class: "stack" }, jobs.map((j) => jobCard(j, runner.running && runner.jobId === j.id))) : h("div", { class: "empty" }, h("p", null, t("Ancora nessuna importazione."))));
     const y = main.scrollTop;
     clear(main).append(...blocks.filter(Boolean));
     main.scrollTop = y;

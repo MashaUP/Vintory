@@ -81,10 +81,18 @@ export async function downloadUpdate() {
   return { downloadId, name: st.zip, verified: Boolean(st.sha256), hash };
 }
 
+/** Vecchi nomi delle chiavi di links.json, ancora accettati (fino alla 1.2.1 «bugReport»). */
+const LINK_ALIASES = { bugReport: "bugs" };
+
 /** Tiene solo i link https verso domini noti; gli altri restano quelli di serie. */
 export function parseLinks(json) {
   const links = { ...DEFAULT_LINKS };
-  for (const [k, v] of Object.entries(json?.links || {})) {
+  const src = { ...(json?.links && typeof json.links === "object" ? json.links : {}) };
+  for (const [old, now] of Object.entries(LINK_ALIASES)) {
+    if (old in src && !(now in src)) src[now] = src[old];
+    delete src[old];
+  }
+  for (const [k, v] of Object.entries(src)) {
     if (!v || typeof v.url !== "string" || !/^[a-zA-Z]\w{0,30}$/.test(k)) continue;
     if (v.enabled === false) { delete links[k]; continue; }
     let host;

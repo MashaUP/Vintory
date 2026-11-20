@@ -2,6 +2,20 @@
 
 Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/) e le versioni seguono [Semantic Versioning](https://semver.org/lang/it/).
 
+## [1.2.2] - 2026-11-20
+
+PATCH: allineamento agli standard comuni dei progetti, senza funzioni nuove per l'archivio.
+
+### Nuovo
+- In Impostazioni, accanto agli altri collegamenti: **«Segnala un problema»** e **«Proponi un'idea»**. Aprono su GitHub un modulo guidato che chiede versione, browser e report diagnostico (`.github/ISSUE_TEMPLATE/bug.yml` e `idea.yml`).
+
+### Cambiato
+- `links.json`: la chiave `bugReport` diventa `bugs` (modello `bug.yml`) e si aggiunge `ideas` (modello `idea.yml`). `bugReport` resta accettato come vecchio nome di `bugs`; se ci sono tutti e due vince `bugs`. Le versioni già installate continuano a mostrare il loro link di serie.
+- Sviluppo: ESLint (`npm run lint`, con `no-undef` e `no-unused-vars`) fa parte di `npm test` e quindi della CI e della release. `scripts/check.mjs` controlla anche che le chiavi di `links.json` siano in minuscolo e che `bugs` e `ideas` aprano modelli esistenti.
+
+### Corretto
+- Codice morto trovato da ESLint, senza effetti visibili: un import e una costante inutilizzati nel controllo dell'armadio, un parametro inutilizzato nel service worker e nella cronologia delle importazioni. Il segno BOM all'inizio dei CSV ora è scritto come `\uFEFF` invece che come carattere invisibile (stesso file in uscita).
+
 ## [1.2.1] - 2026-11-20
 
 ### Corretto

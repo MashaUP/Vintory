@@ -4,14 +4,13 @@
  * modificati su Vinted. Gli spariti vengono verificati uno per uno e segnati nell'archivio.
  */
 import { h, t, clear, icon, toast, rpc, thumbImg } from "../lib.js";
-import { S, changed, go, live, setSettings } from "../state.js";
+import { S, changed, go, setSettings } from "../state.js";
 import * as archive from "../../shared/archive.js";
 import { wardrobeDiff } from "../../shared/model.js";
 import { getState, setState } from "../../shared/store.js";
 import { fmtPrice, fmtDate, sleep } from "../../shared/util.js";
 import { queueImport } from "./import.js";
 
-const STOP = ["captcha", "blocked", "rate", "auth"];
 const pl = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 let running = null;            // { step, done, total, stop }
 let redraw = () => {};

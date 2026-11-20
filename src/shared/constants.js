@@ -1,5 +1,5 @@
 /** Costanti condivise. La versione qui deve coincidere con manifest, package e version.json (scripts/check.mjs). */
-export const VERSION = "1.2.1";
+export const VERSION = "1.2.2";
 export const REPO = "MashaUP/Vintory";
 export const APP = "Vintory";
 
@@ -26,7 +26,8 @@ export const DEFAULT_LINKS = {
   kofi: { url: "https://ko-fi.com/mashaup", label: "Ko-fi" },
   documentation: { url: "https://github.com/MashaUP/Vintory#readme", label: "Guida" },
   changelog: { url: "https://github.com/MashaUP/Vintory/blob/main/CHANGELOG.md", label: "Novità" },
-  bugReport: { url: "https://github.com/MashaUP/Vintory/issues/new", label: "Segnala un problema" },
+  bugs: { url: "https://github.com/MashaUP/Vintory/issues/new?template=bug.yml", label: "Segnala un problema" },
+  ideas: { url: "https://github.com/MashaUP/Vintory/issues/new?template=idea.yml", label: "Proponi un'idea" },
 };
 /** Domini ammessi per i link che arrivano da links.json. */
 export const LINK_HOSTS = ["github.com", "discord.gg", "discord.com", "ko-fi.com"];

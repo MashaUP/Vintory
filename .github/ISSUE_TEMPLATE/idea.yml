@@ -1,0 +1,33 @@
+name: Proponi un'idea
+description: Una funzione nuova o un miglioramento per Vintory.
+title: "[Idea] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Grazie! Ricorda che Vintory resta **in sola lettura verso Vinted**: le idee che pubblicano, modificano o eliminano su Vinted sono per Vinted_Relist.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Cosa vorresti fare
+      description: Il bisogno o il fastidio di oggi, con un esempio concreto.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Come te lo immagini
+      description: Dove comparirebbe (popup, archivio, scheda, pagina di Vinted) e come funzionerebbe.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versione di Vintory che usi
+      placeholder: "1.2.2"
+  - type: textarea
+    id: extra
+    attributes:
+      label: Altro
+      description: Alternative che hai provato, esempi da altre app.

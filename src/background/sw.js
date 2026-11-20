@@ -169,7 +169,7 @@ const summary = (r) => ({
 
 const recent = new Map();      // lettura appena fatta, per non ripeterla dopo la conferma «non è tuo»
 
-async function readItem({ tabId, origin, id, accountId, wardrobe = null }) {
+async function readItem({ tabId, id, accountId, wardrobe = null }) {
   const key = `${tabId}:${id}`;
   const hit = recent.get(key);
   if (hit && Date.now() - hit.at < 120_000) return hit.r;

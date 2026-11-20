@@ -42,7 +42,28 @@ test("links.json: solo https verso domini noti; il resto resta quello di serie",
   assert.equal(l.changelog, undefined);
   assert.equal(l["bad key!"], undefined);
   assert.equal(l.nuovo.label.length, 40);
-  assert.deepEqual(Object.keys(U.parseLinks(null)).sort(), ["bugReport", "changelog", "discord", "documentation", "github", "kofi"]);
+  assert.deepEqual(Object.keys(U.parseLinks(null)).sort(), ["bugs", "changelog", "discord", "documentation", "github", "ideas", "kofi"]);
+});
+
+test("links.json: «bugReport» resta valido come vecchio nome di «bugs»", () => {
+  const old = U.parseLinks({ links: { bugReport: { url: "https://github.com/MashaUP/Vintory/issues/new?template=vecchio.yml", label: "Segnala" } } });
+  assert.equal(old.bugs.url, "https://github.com/MashaUP/Vintory/issues/new?template=vecchio.yml");
+  assert.equal(old.bugReport, undefined);
+  const both = U.parseLinks({ links: { bugReport: { url: "https://github.com/x/vecchio" }, bugs: { url: "https://github.com/x/nuovo" } } });
+  assert.equal(both.bugs.url, "https://github.com/x/nuovo", "se ci sono tutti e due vince «bugs»");
+  assert.equal(U.parseLinks({ links: { bugReport: { url: "https://github.com/x", enabled: false } } }).bugs, undefined, "«enabled: false» col vecchio nome nasconde il link");
+  const now = U.parseLinks({ links: { ideas: { url: "https://github.com/MashaUP/Vintory/issues/new?template=idea.yml", label: "Idee" } } });
+  assert.equal(now.ideas.label, "Idee");
+});
+
+test("links.json del repository: bugs e ideas puntano ai modelli che esistono", async () => {
+  const fs = await import("node:fs");
+  const repo = JSON.parse(fs.readFileSync(new URL("../../links.json", import.meta.url), "utf8"));
+  const l = U.parseLinks(repo);
+  for (const [k, file] of [["bugs", "bug.yml"], ["ideas", "idea.yml"]]) {
+    assert.equal(l[k].url, `https://github.com/MashaUP/Vintory/issues/new?template=${file}`);
+    assert.ok(fs.existsSync(new URL(`../../.github/ISSUE_TEMPLATE/${file}`, import.meta.url)), `manca .github/ISSUE_TEMPLATE/${file}`);
+  }
 });
 
 test("i link obbligatori ci sono di serie", () => {

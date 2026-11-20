@@ -8,6 +8,7 @@
     "kofi": { "url": "https://ko-fi.com/mashaup", "enabled": true, "label": "Ko-fi" },
     "documentation": { "url": "https://github.com/MashaUP/Vintory#readme", "enabled": true, "label": "Guida" },
     "changelog": { "url": "https://github.com/MashaUP/Vintory/blob/main/CHANGELOG.md", "enabled": true, "label": "Novità" },
-    "bugReport": { "url": "https://github.com/MashaUP/Vintory/issues/new", "enabled": true, "label": "Segnala un problema" }
+    "bugs": { "url": "https://github.com/MashaUP/Vintory/issues/new?template=bug.yml", "enabled": true, "label": "Segnala un problema" },
+    "ideas": { "url": "https://github.com/MashaUP/Vintory/issues/new?template=idea.yml", "enabled": true, "label": "Proponi un'idea" }
   }
 }

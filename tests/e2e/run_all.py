@@ -504,7 +504,7 @@ async def t_updates_and_links(env):
         if url.endswith("/MashaUP/Vintory/main/version.json"):
             return await route.fulfill(status=200, content_type="application/json", body=json.dumps({"version": "9.0.0", "date": "2026-12-01", "zip": "Vintory-9.0.0.zip", "sha256": sha, "notes": ["Novità di prova"]}))
         if url.endswith("/MashaUP/Vintory/main/links.json"):
-            return await route.fulfill(status=200, content_type="application/json", body=json.dumps({"revision": 2, "links": {"discord": {"url": "https://discord.gg/NUOVOINVITO", "label": "Discord"}, "kofi": {"url": "https://evil.example/x"}}}))
+            return await route.fulfill(status=200, content_type="application/json", body=json.dumps({"revision": 2, "links": {"discord": {"url": "https://discord.gg/NUOVOINVITO", "label": "Discord"}, "kofi": {"url": "https://evil.example/x"}, "bugReport": {"url": "https://github.com/MashaUP/Vintory/issues/new?template=bug.yml&vecchio=1", "label": "Segnala un problema"}}}))
         if url.endswith("/MashaUP/Vintory/raw/HEAD/Vintory-9.0.0.zip"):
             return await route.fulfill(status=200, content_type="application/zip", body=zip_bytes)
         return await route.fulfill(status=404, body="{}")
@@ -534,6 +534,11 @@ async def t_updates_and_links(env):
     await env.close_modals()
     await env.go("settings")
     check(await env.ui.locator("#check-update").is_visible() and "Disponibile la 9.0.0" in await env.ui.locator("#updates").inner_text(), "sezione Aggiornamenti")
+    bugs = env.ui.locator('a[data-link="bugs"]')
+    ideas = env.ui.locator('a[data-link="ideas"]')
+    check(await bugs.inner_text() == "Segnala un problema" and await bugs.get_attribute("href") == "https://github.com/MashaUP/Vintory/issues/new?template=bug.yml&vecchio=1", f"«Segnala un problema» dal vecchio nome bugReport: {await bugs.get_attribute('href')}")
+    check(await ideas.inner_text() == "Proponi un'idea" and await ideas.get_attribute("href") == "https://github.com/MashaUP/Vintory/issues/new?template=idea.yml", "«Proponi un'idea» col modello idea.yml")
+    check(await env.ui.locator('a[data-link="bugReport"]').count() == 0, "nessun pulsante doppio col vecchio nome")
     pop = await env.ext_page("src/ui/popup.html")
     await pop.wait_for_function("() => !document.getElementById('app').hasAttribute('aria-busy')", timeout=15000)
     check(await pop.locator("#update").inner_text() == "Cerca aggiornamento", "pulsante nel popup")
@@ -543,7 +548,7 @@ async def t_updates_and_links(env):
     await pop.close()
     env.github = None
     await env.A("store.setState('update', null)")
-    return "versione 9.0.0 rilevata con novità, invito Discord cambiato da links.json, link estraneo ignorato" + note
+    return "versione 9.0.0 rilevata con novità, invito Discord cambiato da links.json, link estraneo ignorato, «Segnala un problema» (anche col vecchio nome bugReport) e «Proponi un'idea»" + note
 
 
 async def t_pages_theme(env):

@@ -1,9 +1,10 @@
 {
-  "version": "1.2.1",
+  "version": "1.2.2",
   "date": "2026-11-20",
-  "zip": "Vintory-1.2.1.zip",
-  "sha256": "164caace451d2082ed40f51428241bc6c38084beb9fdd88be453cdab49c107e0",
+  "zip": "Vintory-1.2.2.zip",
+  "sha256": "6c17fce5710c5533339f89196132449f504a5aa51f70ef139d401ee946580034",
   "notes": [
+    "Nuovi pulsanti «Segnala un problema» e «Proponi un'idea» in Impostazioni, con moduli guidati su GitHub",
     "Il download dell'aggiornamento ora si chiama Vintory-x.y.z.zip (prima download.zip)",
     "«Controlla il mio armadio»: nuovi da salvare, venduti, eliminati e modificati, in un clic",
     "Backup cifrati su Google Drive, anche automatici",

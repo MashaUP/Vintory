@@ -35,4 +35,4 @@ I backup su **Google Drive** sono cifrati prima di partire: AES-GCM a 256 bit co
 
 ## Segnalare un problema
 
-Apri una segnalazione su https://github.com/MashaUP/Vintory/issues oppure scrivi sul Discord del progetto. Per un problema di sicurezza, non pubblicare i dettagli: chiedi prima un contatto privato.
+Usa «Segnala un problema» in Impostazioni (apre il modulo su https://github.com/MashaUP/Vintory/issues) oppure scrivi sul Discord del progetto. Per un problema di sicurezza, non pubblicare i dettagli: chiedi prima un contatto privato.
