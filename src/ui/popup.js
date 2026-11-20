@@ -72,6 +72,8 @@ async function render() {
     h("div", { class: "tile" }, h("b", null, sum.mine), h("span", { class: "muted small" }, t("Miei annunci"))),
     h("div", { class: "tile" }, h("b", null, sum.others), h("span", { class: "muted small" }, t("Non miei"))),
     h("div", { class: "tile" }, h("b", null, sum.lastBackupAt ? fmtDate(sum.lastBackupAt).replace(/ \d{4}$/, "") : "—"), h("span", { class: "muted small" }, t("Ultimo backup")))));
+  app.append(h("div", { class: "row" }, h("button", { class: "btn grow", type: "button", id: "popup-check", onClick: () => openDash("check?run=1") }, icon("refresh", 15), t("Controlla il mio armadio")),
+    h("span", { class: "small muted" }, sum.lastCheckAt ? t("ultimo: {d}", { d: fmtDate(sum.lastCheckAt) }) : "")));
   if (sum.recent.length) {
     const list = h("div", { class: "recent" });
     for (const r of sum.recent) {

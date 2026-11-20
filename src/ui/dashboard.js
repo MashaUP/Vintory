@@ -8,6 +8,7 @@ import { backupDue } from "../shared/model.js";
 import { renderList } from "./pages/list.js";
 import { openDetail } from "./pages/detail.js";
 import { renderImport, recoverJobs } from "./pages/import.js";
+import { renderCheck } from "./pages/check.js";
 import { renderBackup, maybeAutoBackup } from "./pages/backup.js";
 import { renderSettings, renderHealth } from "./pages/settings.js";
 import { renderCollections, renderTemplates, renderStats, renderDuplicates } from "./pages/more.js";
@@ -22,6 +23,7 @@ const NAV = [
   ["collections", "folder", "Collezioni", () => S.collections.length],
   ["duplicates", "copy", "Annunci simili", null],
   null,
+  ["check", "refresh", "Controlla armadio", null],
   ["import", "download", "Importa", null],
   ["templates", "doc", "Modelli", null],
   ["stats", "chart", "Statistiche", null],
@@ -70,6 +72,7 @@ async function render() {
       case "collections": renderCollections(app); break;
       case "duplicates": await renderDuplicates(app); break;
       case "import": await renderImport(app); break;
+      case "check": await renderCheck(app); break;
       case "templates": await renderTemplates(app); break;
       case "stats": renderStats(app); break;
       case "backup": await renderBackup(app); break;
@@ -98,7 +101,8 @@ function welcome() {
       h("ol", { style: { paddingLeft: "18px", margin: 0 } },
         h("li", null, t("Apri un tuo annuncio su Vinted e premi «Salva in Vintory» (in basso a sinistra o dall'icona dell'estensione).")),
         h("li", null, t("Per salvarne tanti insieme: apri il tuo armadio e usa «Importa».")),
-        h("li", null, t("Fai un backup ogni tanto: se rimuovi l'estensione, l'archivio che sta nel browser viene cancellato."))),
+        h("li", null, t("Fai un backup ogni tanto: se rimuovi l'estensione, l'archivio che sta nel browser viene cancellato. Puoi anche tenerlo cifrato sul tuo Google Drive."))),
+      h("div", { class: "note" }, t("Hai già un backup su Google Drive, da un altro computer? Vai a Backup › Google Drive e premi «Ripristina».")),
       h("div", { class: "note" }, t("Vintory è in sola lettura: non pubblica, non modifica e non elimina nulla su Vinted."))),
     actions: [{ label: t("Vai al backup"), onClick: (c) => { c(); go("backup"); } }, { label: t("Ho capito"), kind: "primary", onClick: (c) => c() }],
   });

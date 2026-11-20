@@ -58,6 +58,7 @@
   const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   let toastTimer = null;
   function toast(message, bad = false) {
+    if (!host.isConnected) document.documentElement.append(host);
     wrap.querySelector(".toast")?.remove();
     const t = el("div", `toast${bad ? " bad" : ""}`, message);
     t.setAttribute("role", "status");
@@ -74,7 +75,8 @@
   function render() {
     wrap.querySelector(".main")?.remove();
     closePanel();
-    if (ctx.kind === "other" || !info || !info.pageButton) { host.remove(); return; }
+    if (ctx.kind === "other" || !info) { host.remove(); return; }
+    if (!info.pageButton) { if (!wrap.children.length) host.remove(); return; }   // senza pulsante restano solo avvisi e domande
     if (!host.isConnected) document.documentElement.append(host);
     const b = el("button", "main");
     b.type = "button";
@@ -149,6 +151,53 @@
   // ---------------------------------------------------------------- contesto della pagina
 
   let seq = 0;
+  // ---------------------------------------------------------------- dopo la pubblicazione o la modifica di un annuncio
+
+  /** Da dove arrivi: «published» se la pagina prima era «Vendi» (/items/new), «edited» se era la modifica di questo annuncio. */
+  function cameFrom(id) {
+    const prev = prevPath || (() => { try { return new URL(document.referrer).pathname; } catch { return ""; } })();
+    if (/^\/items\/new(?:$|[/?])/.test(prev)) return "published";
+    if (new RegExp(`^/items/${id}(?:-[^/]*)?/edit`).test(prev)) return "edited";
+    return null;
+  }
+  const promptedKey = (id, kind) => `vy:prompted:${kind}:${id}`;
+  function once(id, kind) {
+    try { if (sessionStorage.getItem(promptedKey(id, kind))) return false; sessionStorage.setItem(promptedKey(id, kind), "1"); } catch { /* sessionStorage non disponibile */ }
+    return true;
+  }
+
+  function askPanel(title, text, okLabel, onOk, laterLabel = "Non ora") {
+    closePanel();
+    const p = el("div", "panel");
+    p.id = "vy-prompt";
+    if (!host.isConnected) document.documentElement.append(host);
+    p.setAttribute("role", "dialog");
+    p.setAttribute("aria-label", title);
+    p.append(el("b", null, title), el("div", null, text));
+    const row = el("div", "row");
+    const no = el("button", "ghost", laterLabel);
+    const yes = el("button", "ok", okLabel);
+    no.type = yes.type = "button";
+    no.addEventListener("click", closePanel);
+    yes.addEventListener("click", () => { closePanel(); onOk(); });
+    row.append(no, yes);
+    p.append(row);
+    wrap.prepend(p);
+  }
+
+  async function afterPublish(kind) {
+    if (!info || info.publishPrompt === "off") return;
+    if (kind === "published" && !info.saved && once(ctx.id, kind)) {
+      if (info.publishPrompt === "auto") {
+        try { await save(false); } catch (e) { toast(e.message, true); }
+        return;
+      }
+      askPanel("Annuncio appena pubblicato", "Salvalo in Vintory: ne avrai una copia completa, foto comprese, anche se un giorno sparisce da Vinted.", "Salva in Vintory", () => save(false).catch((e) => toast(e.message, true)));
+    } else if (kind === "edited" && info.saved && once(ctx.id, kind)) {
+      askPanel("Hai modificato questo annuncio", "Vuoi aggiornare la copia in Vintory con le modifiche fatte su Vinted?", "Rivedi le modifiche", () => rpc("open.dashboard", { hash: `archive?item=${info.listingId}&update=1` }).catch((e) => toast(e.message, true)), "Più tardi");
+    }
+  }
+
   async function refresh() {
     const mine = ++seq;
     ctx = VY.pageKind();
@@ -162,6 +211,8 @@
     }
     if (mine !== seq) return;
     render();
+    const came = ctx.kind === "item" ? cameFrom(ctx.id) : null;
+    if (came) await afterPublish(came);
     if (ctx.kind === "item" && info.check) {
       const r = await VY.read({ id: ctx.id, accountId: info.accountId });
       if (mine !== seq || !r.ok) return;
@@ -172,10 +223,19 @@
     }
   }
 
+  // Pagina precedente: nella stessa pagina dell'app (navigazione senza ricaricare) oppure, dopo un
+  // caricamento completo, quella ricordata in sessionStorage (solo questa scheda, solo il percorso).
   let lastPath = null;
+  let prevPath = null;
+  try { prevPath = sessionStorage.getItem("vy:lastPath"); } catch { prevPath = null; }
   globalThis.__vintoryTimer = setInterval(() => {
     if (!alive()) { host.remove(); clearInterval(globalThis.__vintoryTimer); return; }
-    if (location.pathname !== lastPath) { lastPath = location.pathname; refresh(); }
+    if (location.pathname !== lastPath) {
+      if (lastPath !== null) prevPath = lastPath;
+      lastPath = location.pathname;
+      try { sessionStorage.setItem("vy:lastPath", lastPath); } catch { /* niente */ }
+      refresh();
+    }
   }, 700);
 
   if (globalThis.__vintoryListener) { try { chrome.runtime.onMessage.removeListener(globalThis.__vintoryListener); } catch { /* contesto precedente */ } }

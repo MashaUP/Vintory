@@ -6,6 +6,7 @@ dallo stato lasciato dal precedente, come farebbe una persona che usa l'estensio
 """
 import asyncio, io, json, os, re, sys, time, zipfile
 from harness import start, stop, EXT
+from fake_google import auth_flow_js
 from fake_vinted import FakeVinted, ORIGIN, ME, OTHER
 
 
@@ -745,6 +746,151 @@ async def t_real_shapes_102(env):
     return "libro: condizioni da item_attributes, autore e ISBN, categoria imparata con una pagina e riusata; taglia dalla riga dell'armadio; «Completa i dati mancanti» sistema un annuncio della 1.0.1"
 
 
+async def t_wardrobe_check(env):
+    """1.2.0: «Controlla il mio armadio» → nuovi da salvare, venduti, eliminati, modificati; i nuovi si salvano con un clic."""
+    fake = env.fake
+    fake.add(906001, ME, "masha_up", 31, title="Lampada da scrivania anni 70 (controllo armadio)")
+    mine_ids = await env.A("archive.listAll().then((a) => a.filter((l) => l.owner === 'mine' && !l.deletedAt && l.online === 'online' && !l.remoteChanged).map((l) => l.vintedId))")
+    mine_ids = [i for i in mine_ids if int(i) in fake.items]
+    sold_id, gone_id, changed_id = mine_ids[0], mine_ids[1], mine_ids[2]
+    fake.items[int(sold_id)]["is_closed"] = True
+    fake.items[int(sold_id)]["item_closing_action"] = "sold"
+    gone = fake.items.pop(int(gone_id))
+    fake.items[int(changed_id)]["price"] = {"amount": "1.0", "currency_code": "EUR"}
+    sold_title, gone_title, changed_title = fake.items[int(sold_id)]["title"], gone["title"], fake.items[int(changed_id)]["title"]
+    await env.go("archive")
+    await env.ui.locator("#check-open").click()
+    await env.ui.locator("#check-fresh, #check-allgood").first.wait_for(timeout=120000)
+    await env.ui.wait_for_function("() => !document.querySelector('#check-progress')", timeout=120000)
+    fresh = await env.ui.locator("#check-fresh").inner_text()
+    check(fake.items[906001]["title"] in fresh, f"nuovo da salvare: {fresh[:200]}")
+    check(sold_title in await env.ui.locator("#check-sold").inner_text(), "venduto")
+    check(gone_title in await env.ui.locator("#check-offline").inner_text(), "eliminato da Vinted")
+    changed = await env.ui.locator("#check-changed").inner_text()
+    check(changed_title in changed and "prezzo" in changed, f"modificato: {changed[:200]}")
+    s, g, c = await env.listing(sold_id), await env.listing(gone_id), await env.listing(changed_id)
+    check(s["online"] == "sold" and g["online"] == "offline" and c["remoteChanged"] is True, f"archivio aggiornato: {s['online']} {g['online']} {c['remoteChanged']}")
+    check(all(r[0] == "GET" for r in fake.requests), "solo letture su Vinted")
+    new_title = fake.items[906001]["title"]
+    boxes = env.ui.locator("#check-fresh li input[type=checkbox]")
+    for i in range(await boxes.count()):
+        await boxes.nth(i).uncheck()
+    await env.ui.locator("#check-fresh li", has_text=new_title).locator("input[type=checkbox]").check()
+    await env.ui.locator("#check-save").click()
+    await env.wait_for(lambda: env.listing(906001), timeout=60, what="nuovo salvato")
+    await env.toast("Importazione completata", timeout=60000)
+    l = await env.listing(906001)
+    check(l["owner"] == "mine" and l["photoCount"] == 5, "salvato con le foto")
+    await env.go("check")
+    await env.ui.locator("#check-run").wait_for()
+    after = await env.ui.locator("#check-fresh").inner_text() if await env.ui.locator("#check-fresh").count() else ""
+    check(new_title not in after, "dopo il salvataggio non è più tra i nuovi")
+    fake.items[int(gone_id)] = gone
+    return "1 nuovo, 1 venduto, 1 eliminato, 1 modificato riconosciuti; archivio aggiornato; nuovo salvato con «Salva i selezionati»"
+
+
+async def t_drive_backup_restore(env):
+    """1.2.0: backup cifrato su Google Drive, automatico, e ripristino su un'altra installazione con la password."""
+    fd = env.fake.drive
+    n_live = len(await env.A("archive.listAll().then((a) => a.filter((l) => !l.deletedAt).map((l) => l.id))"))
+    n_all = len(await env.A("archive.listAll().then((a) => a.map((l) => l.id))"))
+    await env.go("backup")
+    await env.ui.locator("#drive-client").fill("123456-prova.apps.googleusercontent.com")
+    await env.ui.locator("#drive-client-save").click()
+    await env.ui.locator("#drive-login").wait_for(timeout=10000)
+    redirect = (await env.ui.locator("#drive-redirect").text_content()).strip()
+    check(redirect.startswith("https://") and redirect.endswith(".chromiumapp.org/google"), f"indirizzo di ritorno: {redirect}")
+    await env.A(auth_flow_js())
+    await env.ui.locator("#drive-login").click()
+    await env.ui.locator("#drive-account .chip.good").wait_for(timeout=10000)
+    await env.ui.locator("#drive-backup").click()
+    await env.ui.locator("#drive-pass").fill("password-di-prova")
+    await env.ui.locator("#drive-pass2").fill("password-di-prova")
+    await env.ui.locator(".overlay [data-act='ok']").last.click()
+    await env.toast("Backup su Drive", timeout=180000)
+    check(len(fd.files) == 1, f"un file su Drive: {len(fd.files)}")
+    f = next(iter(fd.files.values()))
+    check(f["data"][:6] == b"VYENC1" and b"vintory.json" not in f["data"] and b"PK" not in f["data"][:200], "cifrato: niente in chiaro")
+    check(f["parents"] == ["appDataFolder"] and f["name"].startswith("Vintory-backup-") and int(f["appProperties"]["listings"]) == n_all, f"cartella nascosta e dati del backup: {f['appProperties']}")
+    await env.ui.locator("#drive-files tbody tr").first.wait_for(timeout=10000)
+    # backup automatico all'apertura della dashboard (password ricordata, accesso ancora valido)
+    await env.settings({"backup": {"auto": "drive", "lastAutoAt": 1}})
+    await env.reload()
+    await env.toast("Backup automatico su Google Drive", timeout=180000)
+    check(len(fd.files) == 2, f"due backup su Drive: {len(fd.files)}")
+    await env.settings({"backup": {"auto": "off"}})
+    # «un altro computer»: installazione nuova, stesso Drive
+    env2 = await start(fake=env.fake)
+    try:
+        await env2.dash("backup")
+        await env2.ui.locator("#drive-client").fill("123456-prova.apps.googleusercontent.com")
+        await env2.ui.locator("#drive-client-save").click()
+        await env2.ui.locator("#drive-login").wait_for(timeout=10000)
+        await env2.A(auth_flow_js())
+        await env2.ui.locator("#drive-login").click()
+        await env2.ui.locator("#drive-files tbody tr").nth(1).wait_for(timeout=15000)
+        await env2.ui.locator("#drive-files [data-restore]").first.click()
+        await env2.ui.locator("#drive-pass").fill("sbagliata-123")
+        await env2.ui.locator(".overlay [data-act='ok']").last.click()
+        await env2.toast("Password sbagliata", timeout=60000)
+        await env2.ui.locator("#drive-pass").fill("password-di-prova")
+        await env2.ui.locator(".overlay [data-act='ok']").last.click()
+        await env2.ui.locator(".modal input[value='merge']").wait_for(timeout=60000)
+        await env2.ui.locator(".overlay [data-act='ok']").last.click()
+        await env2.toast("Importati", timeout=180000)
+        n2 = len(await env2.A("archive.listAll().then((a) => a.filter((l) => !l.deletedAt).map((l) => l.id))"))
+        check(n2 == n_live, f"archivio ripristinato: {n2} di {n_live}")
+        photos = await env2.A("db.count('images')")
+        check(photos > n_live, f"foto ripristinate: {photos}")
+    finally:
+        await stop(env2)
+    return f"backup cifrato in appDataFolder ({n_live} annunci), automatico, ripristino su un'altra installazione dopo una password sbagliata"
+
+
+async def t_publish_prompt(env):
+    """1.2.0: dopo la pubblicazione Vintory propone di salvare (o salva da solo); dopo una modifica propone di aggiornare."""
+    fake = env.fake
+    fake.add(906010, ME, "masha_up", 21)
+    fake.add(906011, ME, "masha_up", 22)
+    page = await env.vinted("/items/new")
+    await asyncio.sleep(1.5)
+    await page.goto(ORIGIN + "/items/906010-appena-pubblicato")
+    prompt = page.locator("#vintory-host #vy-prompt")
+    await prompt.wait_for(timeout=15000)
+    check("appena pubblicato" in (await prompt.inner_text()).lower(), "domanda dopo la pubblicazione")
+    await prompt.get_by_role("button", name="Salva in Vintory").click()
+    await env.wait_for(lambda: env.listing(906010), timeout=60, what="salvato dalla domanda")
+    await page.reload()
+    await page.locator("#vintory-host .main.saved").wait_for(timeout=15000)
+    check(await prompt.count() == 0, "nessuna seconda domanda")
+    # «Salvalo da solo»
+    await env.settings({"publishPrompt": "auto"})
+    await page.goto(ORIGIN + "/items/new")
+    await asyncio.sleep(1.5)
+    await page.goto(ORIGIN + "/items/906011-appena-pubblicato")
+    await env.wait_for(lambda: env.listing(906011), timeout=60, what="salvato da solo")
+    check(await prompt.count() == 0, "senza domanda")
+    # dopo una modifica di un annuncio già salvato
+    await env.settings({"publishPrompt": "ask"})
+    await page.goto(ORIGIN + "/items/906010/edit")
+    await asyncio.sleep(1.5)
+    await page.goto(ORIGIN + "/items/906010-appena-pubblicato")
+    await prompt.wait_for(timeout=15000)
+    check("modificato" in (await prompt.inner_text()).lower(), "domanda dopo la modifica")
+    # «Non fare niente»
+    await env.settings({"publishPrompt": "off"})
+    fake.add(906012, ME, "masha_up", 23)
+    await page.goto(ORIGIN + "/items/new")
+    await asyncio.sleep(1.5)
+    await page.goto(ORIGIN + "/items/906012-x")
+    await page.locator("#vintory-host .main").wait_for(timeout=15000)
+    await asyncio.sleep(1.5)
+    check(await prompt.count() == 0 and await env.listing(906012) is None, "con «Non fare niente» nessuna domanda e nessun salvataggio")
+    await env.settings({"publishPrompt": "ask"})
+    await page.close()
+    return "domanda → salvato; «Salvalo da solo» → salvato senza domanda; dopo la modifica → «aggiorna la copia»; «Non fare niente» → niente"
+
+
 async def t_restart_persistence(env_holder):
     """Criterio MVP: tutto resta dopo aver chiuso completamente il browser."""
     env = env_holder["env"]
@@ -802,6 +948,9 @@ SCENARIOS = [
     ("Cartella sovrascritta: Installa l'aggiornamento", t_install_from_folder),
     ("Vinted reale: token e 403 (1.0.1)", t_vinted_403),
     ("Dati reali e completamento (1.0.2)", t_real_shapes_102),
+    ("Controlla il mio armadio (1.2.0)", t_wardrobe_check),
+    ("Backup su Google Drive e ripristino (1.2.0)", t_drive_backup_restore),
+    ("Dopo la pubblicazione (1.2.0)", t_publish_prompt),
     ("Persistenza dopo il riavvio del browser", t_restart_persistence),
     ("Sola lettura e assenza di errori", t_read_only),
 ]

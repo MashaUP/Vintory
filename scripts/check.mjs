@@ -63,8 +63,14 @@ for (const f of src) {
   for (const m of code.matchAll(/(?:from|import)\s*\(?\s*"(\.{1,2}\/[^"]+)"/g)) {
     if (!fs.existsSync(path.resolve(path.dirname(f), m[1]))) errors.push(`Import mancante in ${path.relative(ROOT, f)}: ${m[1]}`);
   }
-  // Sola lettura: nessun file dell'estensione può fare richieste di scrittura.
-  if (/method:\s*["'](POST|PUT|PATCH|DELETE)["']/i.test(code)) errors.push(`Richiesta di scrittura in ${path.relative(ROOT, f)}: Vintory è in sola lettura`);
+  // Sola lettura verso Vinted: nessun file dell'estensione può fare richieste di scrittura.
+  // Unica eccezione: src/shared/drive.js (backup sul Google Drive dell'utente), che può parlare
+  // solo con i domini di Google e non deve mai nominare Vinted.
+  const rel = path.relative(ROOT, f).replace(/\\/g, "/");
+  if (rel === "src/shared/drive.js") {
+    if (/vinted/i.test(code)) errors.push("src/shared/drive.js non deve parlare con Vinted");
+    for (const u of code.matchAll(/https:\/\/([a-z0-9.-]+)/gi)) if (!/(^|\.)(googleapis\.com|google\.com)$/.test(u[1])) errors.push(`src/shared/drive.js: dominio non ammesso ${u[1]}`);
+  } else if (/method:\s*["'](POST|PUT|PATCH|DELETE)["']/i.test(code)) errors.push(`Richiesta di scrittura in ${rel}: Vintory è in sola lettura`);
   if (/\binnerHTML\b|\bouterHTML\b|insertAdjacentHTML|document\.write\b|\beval\(/.test(code)) errors.push(`HTML o codice da stringa in ${path.relative(ROOT, f)}: usare il DOM`);
 }
 for (const f of all.filter((x) => x.endsWith(".html") && x.includes(`${path.sep}src${path.sep}`))) {

@@ -375,3 +375,41 @@ export function userIdFromToken(value) {
     return /^\d+$/.test(String(sub)) ? String(sub) : null;
   } catch { return null; }
 }
+
+/**
+ * «Controlla il mio armadio»: confronta l'elenco attuale dell'armadio su Vinted con i propri annunci archiviati.
+ *  - fresh:   nell'armadio, attivi, non (ancora) in archivio → da salvare;
+ *  - sold:    in archivio e segnati venduti nell'armadio;
+ *  - gone:    in archivio come online, ma assenti dall'armadio → da verificare (venduti o eliminati);
+ *  - back:    in archivio come spariti, ma di nuovo nell'armadio;
+ *  - changed: titolo, prezzo o prima foto diversi dall'ultima lettura (non dalle tue modifiche in Vintory).
+ */
+export function wardrobeDiff(archived, rows, origin) {
+  const mineLive = archived.filter((l) => l.owner === "mine" && !l.deletedAt);
+  const byVinted = new Map(mineLive.map((l) => [l.vintedId, l]));
+  const seen = new Set();
+  const out = { fresh: [], sold: [], gone: [], back: [], changed: [], unchanged: 0, rows: 0 };
+  for (const raw of rows) {
+    const n = normalizeBundle({ wardrobe: raw }, origin);
+    if (!n || seen.has(n.vintedId)) continue;
+    seen.add(n.vintedId);
+    out.rows++;
+    const l = byVinted.get(n.vintedId);
+    if (!l) {
+      if (n.state === "active" || n.state === "reserved") out.fresh.push({ vintedId: n.vintedId, title: n.title, price: n.price, currency: n.currency, state: n.state, thumb: /^https:\/\/[^/]*vinted\.net\//.test(n.photos[0]?.url || "") ? n.photos[0].url : null, wardrobe: raw });
+      continue;
+    }
+    if (n.state === "sold") { if (l.online !== "sold") out.sold.push(l.id); continue; }
+    if (l.online === "sold" || l.online === "offline") out.back.push(l.id);
+    let last = [];
+    try { last = JSON.parse(l.fp || "[]"); } catch { last = []; }
+    const fields = [];
+    if (n.title && last[0] != null && clean(n.title) !== last[0]) fields.push("title");
+    if (n.price != null && last[2] != null && Number(n.price) !== Number(last[2])) fields.push("price");
+    if (n.photos[0]?.key && Array.isArray(last[3]) && last[3].length && n.photos[0].key !== last[3][0]) fields.push("photos");
+    if (fields.length) out.changed.push({ id: l.id, fields, title: n.title, price: n.price });
+    else out.unchanged++;
+  }
+  for (const l of mineLive) if (!seen.has(l.vintedId) && l.online !== "sold" && l.online !== "offline") out.gone.push(l.id);
+  return out;
+}

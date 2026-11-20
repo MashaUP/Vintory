@@ -2,6 +2,27 @@
 
 Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/) e le versioni seguono [Semantic Versioning](https://semver.org/lang/it/).
 
+## [1.2.0] - 2026-11-20
+
+### Nuovo
+- **«Controlla il mio armadio»** (barra laterale, archivio e popup): legge l'elenco del tuo armadio da Vinted, in sola lettura e solo quando lo chiedi, e lo confronta con l'archivio.
+  - **Nuovi da salvare:** annunci attivi che non sono in archivio. Si salvano con «Salva i selezionati», che usa la solita importazione riprendibile.
+  - **Venduti:** segnati così nell'archivio.
+  - **Spariti:** verificati uno alla volta, con le pause dell'importazione, e segnati «venduti» o «non più online».
+  - **Modificati su Vinted:** titolo, prezzo o prima foto cambiati rispetto all'ultima lettura, non rispetto alle tue modifiche in Vintory. Hanno il segnale «modificato» e il pulsante «Rivedi».
+  - **Tornati:** annunci segnati come spariti che sono di nuovo nell'armadio tornano «online».
+  - Se Vinted dà solo gli annunci visibili nella pagina e non l'elenco completo, il controllo si ferma invece di segnare per sbaglio annunci come spariti.
+- **Backup su Google Drive** (Backup › Google Drive): backup completo, **cifrato con una tua password** (AES-GCM, chiave PBKDF2-SHA256 da 600 000 iterazioni, a blocchi da 4 MiB), nella cartella nascosta di Vintory sul tuo Drive (permesso `drive.appdata`: Vintory vede solo i propri file). Caricamento a pezzi da 8 MiB che si riprovano da soli. Tiene gli ultimi N backup.
+  - Stesso metodo di BingeMap: Client ID OAuth di tipo «Applicazione web», con la guida e l'indirizzo di ritorno da copiare nella pagina.
+  - La password si può ricordare solo su questo computer; non va mai a Google né nei backup. Il token di accesso resta solo nella sessione del browser.
+  - Backup automatico anche su Drive, all'apertura della dashboard.
+- **Ripristino da Google Drive** su un altro computer: elenco dei backup con data, computer di provenienza e numero di annunci; «Ripristina» scarica, chiede la password e poi offre «Unisci» o «Sostituisci».
+- **Dopo la pubblicazione:** quando Vinted apre la pagina di un annuncio appena pubblicato, Vintory propone di salvarlo. In Impostazioni puoi scegliere «Salvalo da solo» o «Non fare niente». Dopo la modifica di un annuncio già salvato, propone di aggiornare la copia.
+
+### Migliorato
+- Report diagnostico: righe per Google Drive (mai token o Client ID) e per il controllo dell'armadio.
+- Le schede di Vinted aperte da Vintory hanno un limite di tempo con un secondo tentativo: un browser che non risponde all'apertura di una scheda non blocca più il completamento delle categorie. Il riepilogo «Categorie» registra anche il passo in corso.
+
 ## [1.1.1] - 2026-11-13
 
 ### Corretto

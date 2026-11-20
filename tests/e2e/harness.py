@@ -2,12 +2,13 @@
 import asyncio, os, shutil, tempfile, time
 from playwright.async_api import async_playwright
 from fake_vinted import FakeVinted, ORIGIN, ME
+from fake_google import FakeDrive
 
 EXT = os.environ.get("VINTORY_EXT") or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))      # VINTORY_EXT: prova la cartella del pacchetto
 CHROME = os.environ.get("CHROME_PATH") or shutil.which("google-chrome") or shutil.which("chromium") or shutil.which("chromium-browser") or "/usr/bin/google-chrome"
 os.environ.setdefault("PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS", "1")
 READY = "() => !document.getElementById('app')?.hasAttribute('aria-busy')"
-MODULES = "const archive = await import('/src/shared/archive.js'); const db = await import('/src/shared/db.js'); const store = await import('/src/shared/store.js');"
+MODULES = "const archive = await import('/src/shared/archive.js'); const db = await import('/src/shared/db.js'); const store = await import('/src/shared/store.js'); const drive = await import('/src/shared/drive.js');"
 
 
 class Env:
@@ -116,6 +117,10 @@ async def start(fake=None, profile=None):
     await ctx.add_cookies([{"name": "v_uid", "value": ME, "domain": "www.vinted.it", "path": "/", "secure": True, "httpOnly": True}])
     await ctx.route("https://www.vinted.it/**", fake.handle)
     await ctx.route("https://images1.vinted.net/**", fake.handle_photo)
+    if not getattr(fake, "drive", None):
+        fake.drive = FakeDrive()          # condiviso tra due installazioni: «un altro computer»
+    for pattern in ("https://www.googleapis.com/**", "https://oauth2.googleapis.com/**"):
+        await ctx.route(pattern, fake.drive.handle)
     env = Env(pw, ctx, fake, profile)
 
     async def gh(route):          # registrato all'avvio: le route aggiunte dopo non valgono per il service worker

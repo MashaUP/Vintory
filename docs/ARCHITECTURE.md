@@ -52,9 +52,19 @@ Le foto si scaricano dal service worker o dalla dashboard (permesso `*.vinted.ne
 
 La dashboard guida il lavoro e lo scrive in `jobs` dopo ogni annuncio. Se la pagina si chiude, alla riapertura il lavoro rimasto «in corso» diventa «interrotto» e si riprende dagli annunci in attesa. Tra un annuncio e l'altro c'è una pausa (1,2–2,5 s di serie).
 
+## Controllo dell'armadio
+
+`pages/check.js`: elenco dell'armadio (tutte le pagine di `/wardrobe/:id/items`), poi `wardrobeDiff` in `model.js` (funzione pura): nuovi attivi non in archivio, venduti, spariti, tornati, modificati rispetto all'impronta dell'ultima lettura (`fp`), non rispetto alle modifiche fatte in Vintory. Gli spariti si verificano uno alla volta con `vinted.check`. Se l'elenco viene dalla pagina (solo gli annunci visibili) il controllo si ferma. I nuovi si salvano con `queueImport` di `pages/import.js`.
+
+## Dopo la pubblicazione
+
+`content.js` ricorda il percorso precedente della scheda (in memoria e in `sessionStorage`, solo il percorso). Da `/items/new` a un annuncio: domanda «salva», salvataggio automatico o niente (`settings.publishPrompt`). Da `/items/:id/edit` allo stesso annuncio già salvato: proposta di aggiornare la copia. Una volta sola per annuncio e scheda.
+
 ## Backup
 
 `Vintory-backup-<data>.zip` contiene `vintory.json` (formato `vintory-backup`, schema 1) e le cartelle `images/` e `thumbs/`. Lo ZIP è scritto senza compressione e senza librerie (`zip.js`); il lettore accetta anche ZIP compressi. L'importazione unisce (salta gli ID Vinted già presenti) oppure sostituisce.
+
+**Google Drive** (`drive.js`, `crypto.js`, `pages/backup.js`): lo stesso ZIP, cifrato in formato «VYENC1» (intestazione JSON con sale, iterazioni e prefisso del nonce; blocchi AES-GCM da 4 MiB con il numero del blocco e «ultimo» nei dati autenticati), caricato a pezzi da 8 MiB (`uploadType=resumable`) in `appDataFolder` come `Vintory-backup-<data>.vyenc`, con `appProperties` (computer, numero di annunci e foto, versione). Si tengono gli ultimi N. Il ripristino scarica, decifra e passa al solito «Unisci / Sostituisci». `scripts/check.mjs` ammette richieste di scrittura solo in `drive.js` e solo verso domini Google.
 
 ## Aggiornamenti e collegamenti
 

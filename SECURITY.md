@@ -25,10 +25,13 @@ Vintory non aggira CAPTCHA, errori 403 o limiti 429: si ferma e lo dice.
 | `webRequest` | osservare (senza modificare) le intestazioni che Vinted usa per le sue richieste |
 | `downloads` | salvare backup e aggiornamenti |
 | `alarms`, `notifications` | controllo degli aggiornamenti, promemoria del backup |
+| `identity` + `googleapis.com` | solo se attivi il backup su Google Drive: accesso con il tuo Client ID, permesso `drive.appdata` (Vintory vede solo i propri file nel tuo Drive) |
 
 ## Backup e file importati
 
-I backup non sono cifrati: contengono i tuoi annunci e le foto, conservali come faresti con qualsiasi file personale. Un backup importato viene controllato: i dati sono trattati come testo, i link non `https` vengono scartati.
+I backup ZIP sul computer non sono cifrati: contengono i tuoi annunci e le foto, conservali come faresti con qualsiasi file personale.
+
+I backup su **Google Drive** sono cifrati prima di partire: AES-GCM a 256 bit con una chiave ricavata dalla tua password (PBKDF2-SHA256, 600 000 iterazioni, sale casuale), a blocchi da 4 MiB autenticati uno per uno. La password non va mai a Google né nei backup; se scegli di ricordarla, resta solo in questo browser (`chrome.storage.local`). Il token di accesso a Google resta nella sessione del browser e sparisce chiudendolo. Né la password né il token né il Client ID finiscono nel report diagnostico. Un backup importato viene controllato: i dati sono trattati come testo, i link non `https` vengono scartati.
 
 ## Segnalare un problema
 

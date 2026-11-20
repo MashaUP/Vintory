@@ -1,5 +1,5 @@
 /** Costanti condivise. La versione qui deve coincidere con manifest, package e version.json (scripts/check.mjs). */
-export const VERSION = "1.1.1";
+export const VERSION = "1.2.0";
 export const REPO = "MashaUP/Vintory";
 export const APP = "Vintory";
 
@@ -44,7 +44,7 @@ export const DEFAULT_SETTINGS = {
   customFields: ["Costo d'acquisto", "Misure", "Peso del pacco"],
   backup: {
     remindDays: 7,               // 0 = mai
-    auto: "off",                 // off | downloads | folder
+    auto: "off",                 // off | downloads | folder | drive
     autoDays: 7,
     keep: 5,
     lastAt: null,
@@ -55,7 +55,10 @@ export const DEFAULT_SETTINGS = {
   },
   updates: { auto: true, repo: REPO, lastNotified: null },
   links: { autoRefresh: true },
-  fillNoteHidden: null,          // quanti annunci senza categoria c'erano quando l'avviso è stato nascosto
+  fillNoteHidden: null,
+  drive: { clientId: "", device: "", hasPassword: false, lastAt: null, lastName: null, lastSize: null },
+  wardrobe: { lastCheckAt: null },
+  publishPrompt: "ask",          // dopo aver pubblicato un annuncio: ask | auto | off          // quanti annunci senza categoria c'erano quando l'avviso è stato nascosto
 };
 
 export const CONDITION_BY_STATUS_ID = {

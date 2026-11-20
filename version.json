@@ -1,12 +1,12 @@
 {
-  "version": "1.1.1",
-  "date": "2026-11-13",
-  "zip": "Vintory-1.1.1.zip",
-  "sha256": "c179e4fbac8b6b83fc2b1c2a0c3f9c0d3b0586905605f1f702ed08c5d11fcced",
+  "version": "1.2.0",
+  "date": "2026-11-20",
+  "zip": "Vintory-1.2.0.zip",
+  "sha256": "627cd5837e2488d61a0040025207e24ca04518bf048ef1f5b8c8c613c0e7e233",
   "notes": [
-    "«Completa i dati mancanti» trova i nomi delle categorie anche quando Vinted disegna il percorso con JavaScript",
-    "Barra di avanzamento durante il completamento",
-    "L'avviso delle categorie mancanti si può nascondere con «Non ora»",
-    "Il report diagnostico dice cosa è stato trovato per le categorie"
+    "«Controlla il mio armadio»: nuovi da salvare, venduti, eliminati e modificati, in un clic",
+    "Backup cifrati su Google Drive, anche automatici",
+    "Ripristino da Google Drive su un altro computer",
+    "Dopo aver pubblicato un annuncio, Vintory propone di salvarlo (o lo salva da solo)"
   ]
 }

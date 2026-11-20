@@ -218,3 +218,32 @@ test("utilità: versioni, numeri, date, impostazioni", () => {
   assert.equal(merged.backup.keep, 5);
   assert.deepEqual(merged.customFields, ["A"]);
 });
+
+test("controlla il mio armadio: nuovi, venduti, spariti, tornati, modificati (non le mie modifiche)", () => {
+  const ph = (id) => ({ id, url: `https://images1.vinted.net/t/${id}.jpg` });
+  const row = (id, extra = {}) => ({ id, title: `Annuncio ${id}`, price: { amount: "10.0", currency_code: "EUR" }, user: { id: 4242 }, photo: ph(id * 10), is_closed: false, ...extra });
+  const archived = (id, extra = {}) => {
+    const n = M.normalizeBundle({ wardrobe: row(id) }, ORIGIN);
+    return { id: `l${id}`, vintedId: String(id), owner: "mine", deletedAt: null, online: "online", title: n.title, price: n.price, fp: M.fingerprint(n), editedFields: [], ...extra };
+  };
+  const list = [
+    archived(1),                                              // invariato
+    archived(2),                                              // venduto nell'armadio
+    archived(3),                                              // sparito
+    archived(4, { online: "offline" }),                       // era sparito, è tornato
+    archived(5),                                              // prezzo cambiato su Vinted
+    archived(6, { title: "Titolo mio", editedFields: ["title"] }),   // modificato solo in Vintory: non conta
+    archived(7, { online: "sold" }),                          // già venduto e non più nell'elenco: niente da fare
+    { ...archived(8), owner: "other" },                       // non mio: ignorato
+    { ...archived(9), deletedAt: 1 },                         // nel cestino: torna tra i nuovi
+  ];
+  const rows = [row(1), row(2, { is_closed: true }), row(4), row(5, { price: { amount: "8.0", currency_code: "EUR" } }), row(6), row(9), row(10), row(11, { is_hidden: true }), row(12, { is_closed: true }), row(10)];
+  const d = M.wardrobeDiff(list, rows, ORIGIN);
+  assert.deepEqual(d.fresh.map((f) => f.vintedId), ["9", "10"], "nuovi: attivi e non in archivio (il nascosto e il venduto no, niente doppioni)");
+  assert.deepEqual(d.sold, ["l2"]);
+  assert.deepEqual(d.gone, ["l3"]);
+  assert.deepEqual(d.back, ["l4"]);
+  assert.deepEqual(d.changed.map((c) => [c.id, c.fields]), [["l5", ["price"]]]);
+  assert.equal(d.unchanged, 3);
+  assert.equal(d.rows, 9);
+});

@@ -139,10 +139,10 @@ export function confirmDialog(title, text, { okLabel = t("Conferma"), danger = f
   });
 }
 
-export function promptDialog(title, label, value = "", { okLabel = t("Salva"), multiline = false } = {}) {
+export function promptDialog(title, label, value = "", { okLabel = t("Salva"), multiline = false, type = "text" } = {}) {
   return new Promise((resolve) => {
     let answer = null;
-    const input = h(multiline ? "textarea" : "input", { class: "input", value, autofocus: true });
+    const input = h(multiline ? "textarea" : "input", { class: "input", value, autofocus: true, type: multiline ? null : type, autocomplete: type === "password" ? "current-password" : null });
     const m = modal({
       title, body: h("label", { class: "field" }, label, input), onClose: () => resolve(answer),
       actions: [{ label: t("Annulla"), onClick: (c) => c() }, { id: "ok", label: okLabel, kind: "primary", onClick: (c) => { answer = input.value.trim(); c(); } }],

@@ -137,6 +137,7 @@ export async function renderList(main, scopeName, arg) {
   } }, h("option", { value: "" }, t("Esporta elenco…")), h("option", { value: "csv" }, "CSV"), h("option", { value: "xlsx" }, "Excel (.xlsx)"));
 
   const headActions = [];
+  if (scopeName === "archive") headActions.push(h("button", { class: "btn", type: "button", id: "check-open", onClick: () => go("check?run=1") }, icon("refresh"), t("Controlla il mio armadio")));
   if (scopeName === "archive" || scopeName === "others") headActions.push(h("button", { class: "btn primary", type: "button", onClick: () => go("import") }, icon("download"), t("Importa da un armadio")));
   if (isTrash && base.length) headActions.push(h("button", { class: "btn danger", type: "button", onClick: async () => {
     if (!(await confirmDialog(t("Svuotare il cestino?"), t("{n} annunci verranno eliminati per sempre, con le loro foto. Non si può annullare.", { n: base.length }), { okLabel: t("Elimina per sempre"), danger: true }))) return;

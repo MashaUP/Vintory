@@ -58,11 +58,34 @@ if (chrome.webRequest?.onSendHeaders) {
 
 // ---------------------------------------------------------------- schede di Vinted
 
+/** Un'operazione sulle schede con un limite di tempo: il browser a volte non risponde, e Vintory non deve restare appeso. */
+function withTimeout(promise, ms, message) {
+  let timer;
+  return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); })]).finally(() => clearTimeout(timer));
+}
+
+/** Apre una scheda vuota in secondo piano e la porta all'indirizzo; un secondo tentativo se il browser non risponde. */
+async function openBackgroundTab(url) {
+  for (let attempt = 1; ; attempt++) {
+    let tab = null;
+    try {
+      tab = await withTimeout(chrome.tabs.create({ url: "about:blank", active: false }), 15_000, "Il browser non ha aperto la scheda in 15 secondi.");
+      await withTimeout(chrome.tabs.update(tab.id, { url }), 15_000, "Il browser non ha caricato la scheda in 15 secondi.");
+      await new Promise((r) => setTimeout(r, 300));
+      await waitComplete(tab.id);
+      return tab;
+    } catch (e) {
+      if (tab) chrome.tabs.remove(tab.id).catch(() => {});
+      if (attempt >= 2) throw e;
+    }
+  }
+}
+
 async function waitComplete(tabId, timeoutMs = 30_000) {
   const end = Date.now() + timeoutMs;
   while (Date.now() < end) {
-    const t = await chrome.tabs.get(tabId).catch(() => null);
-    if (!t) throw new Error("La scheda di Vinted è stata chiusa.");
+    const t = await withTimeout(chrome.tabs.get(tabId), 5_000, "timeout").catch(() => null);
+    if (!t) throw new Error("La scheda di Vinted è stata chiusa o non risponde.");
     if (t.status === "complete") return t;
     await new Promise((r) => setTimeout(r, 300));
   }
@@ -79,10 +102,7 @@ async function vintedTab({ origin, tabId = null, url = null }) {
   const tabs = await chrome.tabs.query({ url: `${origin}/*` });
   const ready = tabs.find((t) => t.status === "complete") || tabs[0];
   if (ready) return { tab: ready, created: false };
-  const t = await chrome.tabs.create({ url: "about:blank", active: false });
-  await chrome.tabs.update(t.id, { url: url && url.startsWith(`${origin}/`) ? url : `${origin}/` });
-  await new Promise((r) => setTimeout(r, 300));
-  await waitComplete(t.id);
+  const t = await openBackgroundTab(url && url.startsWith(`${origin}/`) ? url : `${origin}/`);
   return { tab: t, created: true };
 }
 
@@ -266,16 +286,15 @@ async function fillMissing() {
     const report = { filledLocal, categories: todo.size, learned: 0, approx: 0, failed: 0, stopped: null, filled: 0, byText: 0, byLive: 0 };
     const diag = { at: Date.now(), tried: todo.size, found: 0, text: { tried: 0, found: 0, links: 0, mentions: 0, status: null }, live: { tried: 0, found: 0, links: 0, mentions: 0 } };
     const progress = (done, msg) => broadcast("vy:fill-progress", { done, total: todo.size, msg });
+    const step = (name) => { diag.step = name; diag.stepAt = Date.now(); return setState("fillDiag", diag).catch(() => {}); };
     if (todo.size) {
       const s = await getSettings();
       const first = [...todo.values()][0];
       let textFails = 0;
       let liveWorks = false;
       // Una scheda tutta sua, in secondo piano: non dipende dalle schede di Vinted aperte dall'utente.
-      liveTab = await chrome.tabs.create({ url: "about:blank", active: false });
-      await chrome.tabs.update(liveTab.id, { url: `${first.origin}/` });
-      await new Promise((r) => setTimeout(r, 300));
-      await waitComplete(liveTab.id);
+      await step("apro la scheda");
+      liveTab = await openBackgroundTab(`${first.origin}/`);
       await (async (tab) => {
         let i = 0;
         for (const [cid, l] of todo) {
@@ -284,6 +303,7 @@ async function fillMissing() {
           let found = null;
           // 1. testo (saltato se finora non ha mai funzionato e la pagina vera sì)
           if (!(textFails >= 2 && liveWorks)) {
+            await step(`testo ${i}`);
             const r = await askTab(tab.id, { type: "vy:page", id: l.vintedId, catalogId: cid }, 45_000).catch((e) => ({ ok: false, kind: "error", message: e.message }));
             diag.text.tried++;
             if (!r.ok) diag.text.error = String(r.message || r.kind || "").slice(0, 160);
@@ -294,10 +314,14 @@ async function fillMissing() {
           // 2. pagina vera, in una scheda in secondo piano
           if (!found) {
             const url = `${l.origin}/items/${l.vintedId}`;
-            await chrome.tabs.update(liveTab.id, { url });
-            await new Promise((r) => setTimeout(r, 300));
-            await waitComplete(liveTab.id);
-            const r = await askTab(liveTab.id, { type: "vy:page", id: l.vintedId, catalogId: cid, live: true }, 45_000).catch((e) => ({ ok: false, kind: "error", message: e.message }));
+            await step(`pagina aperta ${i}: carico`);
+            const r = await (async () => {
+              await withTimeout(chrome.tabs.update(liveTab.id, { url }), 15_000, "Il browser non ha caricato la scheda in 15 secondi.");
+              await new Promise((res) => setTimeout(res, 300));
+              await waitComplete(liveTab.id);
+              await step(`pagina aperta ${i}: leggo`);
+              return askTab(liveTab.id, { type: "vy:page", id: l.vintedId, catalogId: cid, live: true }, 45_000);
+            })().catch((e) => ({ ok: false, kind: "error", message: e.message }));
             diag.live.tried++;
             if (!r.ok) diag.live.error = String(r.message || r.kind || "").slice(0, 160);
             if (r.info) { diag.live.links += r.info.links || 0; diag.live.mentions += r.info.mentions || 0; }
@@ -352,7 +376,7 @@ async function handle(method, p, sender) {
       const saved = Boolean(l && !l.deletedAt);
       if (sender.tab) refreshBadge(sender.tab.id, sender.tab.url);
       const recentCheck = l?.onlineCheckedAt && Date.now() - l.onlineCheckedAt < 10 * 60_000;
-      return { pageButton: s.pageButton, saved, listingId: saved ? l.id : null, remoteChanged: saved && Boolean(l.remoteChanged), check: saved && s.checkChanges && !recentCheck, accountId };
+      return { pageButton: s.pageButton, publishPrompt: s.publishPrompt || "ask", saved, listingId: saved ? l.id : null, remoteChanged: saved && Boolean(l.remoteChanged), check: saved && s.checkChanges && !recentCheck, accountId };
     }
     case "page.compare": {
       const c = await archive.compareBundle({ bundle: p.bundle, origin: p.origin });
@@ -425,6 +449,7 @@ async function handle(method, p, sender) {
         recent: all.sort((a, b) => b.savedAt - a.savedAt).slice(0, 5).map((l) => ({ id: l.id, title: l.title, price: l.price, currency: l.currency, coverImageId: l.coverImageId })),
         backupDue: all.length > 0 && backupDue(s.backup.lastAt, s.backup.remindDays),
         lastBackupAt: s.backup.lastAt,
+        lastCheckAt: s.wardrobe?.lastCheckAt || null,
         update: await getState("update", null),
       };
     }

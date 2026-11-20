@@ -140,3 +140,11 @@ ul.plain { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 
 .install { display: grid; gap: 6px; padding: 10px; border-radius: var(--radius-sm); background: #f6c344; color: #2a1c00; font-size: 13px; }
 .install .btn { background: #2a1c00 !important; color: #fff !important; border-color: transparent; }
+
+.check-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.check-row { display: grid; grid-template-columns: auto 44px 1fr auto auto; align-items: center; gap: 10px; padding: 6px 4px; border-bottom: 1px solid var(--border); }
+.check-row:has(> a:first-of-type) { grid-template-columns: 44px 1fr auto auto; }
+.check-row img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; background: var(--surface-3); }
+.check-row a { color: var(--text); text-decoration: none; font-weight: 500; }
+.check-row a:hover { text-decoration: underline; }
+.check-row .btn { text-decoration: none; }

@@ -25,7 +25,7 @@ export async function recoverJobs() {
   for (const j of await db.getAll("jobs")) if (j.status === "running" && !(runner.running && runner.jobId === j.id)) await db.put("jobs", { ...j, status: "interrupted" });
 }
 
-async function runJob(jobId) {
+export async function runJob(jobId) {
   if (runner.running) { toast(t("C'è già un'importazione in corso.")); return; }
   Object.assign(runner, { jobId, running: true, stop: false });
   let job = await db.get("jobs", jobId);
@@ -109,19 +109,26 @@ function visibleItems() {
 }
 function selectDefault() { preview.selected = new Set(visibleItems().map((i) => i.vintedId)); }
 
+/** Crea un'importazione (riprendibile) per questi annunci e la avvia. Usata anche da «Controlla il mio armadio». */
+export async function queueImport({ origin, userId, sellerLogin = null, tabId = null, owner = "mine", items }) {
+  const job = {
+    id: uid("j_"), createdAt: Date.now(), updatedAt: Date.now(), origin, userId: String(userId), sellerLogin, tabId,
+    owner, status: "paused", message: null,
+    items: items.map((i) => ({ vintedId: i.vintedId, title: i.title, price: i.price, currency: i.currency, status: "pending", wardrobe: i.wardrobe })),
+  };
+  await db.put("jobs", job);
+  runJob(job.id);
+  return job;
+}
+
 async function startImport() {
   const items = visibleItems().filter((i) => preview.selected.has(i.vintedId));
   if (!items.length) { toast(t("Seleziona almeno un annuncio.")); return; }
   const isMine = S.account.userId && preview.userId === String(S.account.userId);
   if (!isMine && !(await confirmDialog(t("Annunci non tuoi"), t("Questo armadio non è il tuo: i {n} annunci verranno salvati nella sezione «Annunci non miei».", { n: items.length }), { okLabel: t("Importa comunque") }))) return;
-  const job = {
-    id: uid("j_"), createdAt: Date.now(), updatedAt: Date.now(), origin: preview.origin, userId: preview.userId, sellerLogin: preview.sellerLogin, tabId: preview.tabId,
-    owner: isMine ? "mine" : "other", status: "paused", message: null,
-    items: items.map((i) => ({ vintedId: i.vintedId, title: i.title, price: i.price, currency: i.currency, status: "pending", wardrobe: i.wardrobe })),
-  };
-  await db.put("jobs", job);
+  const ctx = { origin: preview.origin, userId: preview.userId, sellerLogin: preview.sellerLogin, tabId: preview.tabId, owner: isMine ? "mine" : "other", items };
   preview = null;
-  runJob(job.id);
+  await queueImport(ctx);
 }
 
 function jobCard(job, open) {
